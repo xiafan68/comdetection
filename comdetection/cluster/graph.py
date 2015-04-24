@@ -1,5 +1,5 @@
-#encoding=utf-8
-#simple undirected graph implemenataion with weighted edge
+# encoding=utf-8
+# simple undirected graph implemenataion with weighted edge
 #
 #
 #
@@ -8,22 +8,22 @@ import sys
 
 class Graph():
     def __init__(self):
-        self.nodeAdj={} #邻接表 nodeID-> [edgeID]
-        self.nodeWeight={}#node出去loop边的权重之和，空间换时间
-        self.nodeSelfWeight={}#node的loop边的权重
-        self.edges={}
+        self.nodeAdj = {}  # 邻接表 nodeID-> [edgeID]
+        self.nodeWeight = {}  # node出去loop边的权重之和，空间换时间
+        self.nodeSelfWeight = {}  # node的loop边的权重
+        self.edges = {}
         self.totalWeight = float(0.0)
         
-    #插入一条边
-    def addEdge(self,id, start, end, weight):
+    # 插入一条边
+    def addEdge(self, id, start, end, weight):
         if self.existEdge(start, end):
             return
-        self.totalWeight +=  float(weight)
+        self.totalWeight += float(weight)
         if start == end:
-            self.nodeSelfWeight[start]=weight
+            self.nodeSelfWeight[start] = weight
             self.insertNode(start)
         else:
-            self.edges[id]=(id, start, end, float(weight))      
+            self.edges[id] = (id, start, end, float(weight))      
             self.installNodeEdge(start, id, end, weight)
             self.installNodeEdge(end, id, start, weight)
       
@@ -36,12 +36,12 @@ class Graph():
     def insertNode(self, node):
         if self.nodeAdj.has_key(node) == False:
             self.nodeAdj[node] = {}
-            self.nodeWeight[node]=0.0
+            self.nodeWeight[node] = 0.0
     def installNodeEdge(self, node, edgeID, end, weight):
         self.insertNode(node) 
-        if self.nodeAdj[node].has_key(end)==False:
+        if self.nodeAdj[node].has_key(end) == False:
             self.nodeAdj[node][end] = edgeID
-            self.nodeWeight[node]+=float(weight)
+            self.nodeWeight[node] += float(weight)
 
     def getSelfWeight(self, node) :
         if (self.nodeSelfWeight.has_key(node)):
@@ -49,19 +49,19 @@ class Graph():
         else:
             return 0.0
 
-    #每条边只算了一次权重，和另一个实现
+    # 每条边只算了一次权重，和另一个实现
     def getTotalWeight(self):
         return self.totalWeight
     
-    #获取邻居节点集
+    # 获取邻居节点集
     def nodes(self):
         return self.nodeAdj.keys()
 
-    #获取一个节点相邻的节点，返回(node, edgeID)
+    # 获取一个节点相邻的节点，返回(node, edgeID)
     def neighbours(self, node):
         return self.nodeAdj[node].items()
 
-    #所有邻接边(除去selfloop边)的权重之和
+    # 所有邻接边(除去selfloop边)的权重之和
     def neighWeight(self, node):
         return self.nodeWeight[node]
 
@@ -75,27 +75,27 @@ class Graph():
     def printGraph(self):
         print "graph:*****************"
         for node in self.nodes():
-            adjStr = str.format("%s -> "%(node))
+            adjStr = str.format("%s -> " % (node))
             for edgePair in self.neighbours(node):
                 edge = self.getEdge(edgePair[1])
-                adjStr+=str.format("(%s|%f),"%(edgePair[0], edge[3]))
+                adjStr += str.format("(%s|%f)," % (edgePair[0], edge[3]))
             if self.getSelfWeight(node) > 0.0:
-                adjStr += str.format("(%s|%f),"%(str(node), self.getSelfWeight(node)))
+                adjStr += str.format("(%s|%f)," % (str(node), self.getSelfWeight(node)))
             print adjStr
             print "----------------"
         print "***********************"
 
 if __name__ == "__main__":
-    #csvReader = csv.reader(file(sys.argv[1],'rb'), csv.excel_tab)
-    #i = 0
-    #g = Graph()
-    #for line in csvReader:
+    # csvReader = csv.reader(file(sys.argv[1],'rb'), csv.excel_tab)
+    # i = 0
+    # g = Graph()
+    # for line in csvReader:
     #    edgeArr = line
     #    g.addEdge(i, edgeArr[0], edgeArr[1], 1.0)
     #    i+=1
-    #g.printGraph()
+    # g.printGraph()
     g = Graph()
-    g.addEdge(0 ,1 ,2, 3)
+    g.addEdge(0 , 1 , 2, 3)
     g.addEdge(1, 2, 1, 3) 
     g.addEdge(2, 1, 3, 3)
     g.printGraph()

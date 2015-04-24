@@ -1,4 +1,5 @@
 __author__ = 'pc'
+from ConfigParser import ConfigParser
 from random import randint
 import logging
 from redis import RedisCluster
@@ -8,12 +9,17 @@ from thrift.transport import TSocket
 from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 from thrift.server import TServer
-import thread
-from cluster.community import *
+from threading import Thread
 
-class ReportThread(thread):
+from util.config import Config
+from cluster.community import *
+from cache.graphcache import GraphCache
+from task.taskgen import TaskGen 
+
+class ReportThread(Thread):
     def __init__(self, slaveWorker):
         self.slaveWorker = slaveWorker
+        
     def run(self):
         while self.slaveWorker.working:
             logging.info("start report service")
@@ -27,7 +33,7 @@ class ReportThread(thread):
     def stopReport(self):
         self.reportServer.stop()
         
-class ClusterThread(thread):
+class ClusterThread(Thread):
 	def __init__(self, taskGen):
 		self.taskGen = taskGen
 		super(ClusterThread, self).__init__()
@@ -42,7 +48,8 @@ class ClusterThread(thread):
                 for neighbour in task[1].neighbours(task[0]) :
                     #TODO store the cluster results
                     comm.getComm(neighbour)
-    
+                self.taskGen.taskFinish(task[0])
+                
 class SlaveWorker:
     def __init__(self, config):
         self.dataServers = config['dataServers']
@@ -63,10 +70,13 @@ class SlaveWorker:
 
         self.reportThread = ReportThread()
         self.reportThread.start()
-        logging.info("start worker thread")
-        self.workThread = ClusterThread()
-        self.workThread.start()
         
+        logging.info("start worker thread")
+        self.taskGen = TaskGen(self.taskCluster, GraphCache(self.dataCluster))
+        
+        self.workThread = ClusterThread(taskGen)
+        self.workThread.start()
+
     """
     the following function are status report function
     """
@@ -76,6 +86,9 @@ class SlaveWorker:
     def reAssignJob(self, jobQueueID):
         self.workStatus.jobQueueID = jobQueueID
 
+    def clusterForNode(self, nodeID):
+        self.taskGen.addNewTask(nodeID)
+        
     # stop processing
     def stop(self):
     	self.working = false
@@ -87,5 +100,6 @@ class SlaveWorker:
         self.reportThread.join()
 
 if __name__ == "__main__":
-    slaveWorker = SlaveWorker()
+    Config.
+    slaveWorker = SlaveWorker(Config.config)
     slaveWorker.start() 

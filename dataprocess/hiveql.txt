@@ -1,0 +1,19 @@
+ CREATE EXTERNAL TABLE UserProfile(uid STRING,uid1 STRING, name STRING, folCount INT,
+ friCount INT, statusCount INT, favorCount INT, verified BOOL,
+ vType INT, location STRING)
+ COMMENT 'user profile'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+ STORED AS TEXTFILE
+ LOCATION '/home/xiafan/userprofile';
+ 
+ 
+ CREATE EXTERNAL TABLE SocialNetwork(follower STRING, followee STRING)
+ COMMENT 'social network by uid'
+ ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+ STORED AS TEXTFILE
+ LOCATION '/home/xiafan/weibo/network';
+ 
+ #将uid表示的social network改成uname组成的social network
+ select fol.name, folee.name from 
+ UserProfile fol join SocialNetwork on (fol.uid = follower)
+  join UserProfile folee on (folee.uid = followee);

@@ -278,7 +278,8 @@ class Community():
                 if topMap.has_key(lastMap[node]):
                     lastMap[node]=topMap[lastMap[node]]
             
-
+	def getComm(self, nodeID):
+		return self.n2c[nodeID]
 
 if (__name__ == "__main__"):
     g = Graph()
