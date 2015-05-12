@@ -4,7 +4,7 @@
 #
 #
 from cluster.graph import Graph
-from xredis.RedisCluster import RedisCluster
+from xredis import RedisCluster
 from lru import LRUCacheDict
 import logging
 
@@ -15,7 +15,7 @@ class GraphCache:
         self.dataCluster = dataCluster
         self.profileCluster = profileCluster
 
-        self.nodeAdj = LRUCacheDict(10240, 10)  # 邻接表 nodeID-> [nodeID]
+        self.nodeAdj = LRUCacheDict(102400, 10)  # 邻接表 nodeID-> [nodeID]
         self.nodeProfile = LRUCacheDict(102400, 10)  # profiles
         self.edgeNum = 0
 
@@ -55,8 +55,8 @@ class GraphCache:
     def nodeSize(self):
         return len(self.nodeAdj)
     """
-	extract the ego-centric network of nodeID
-	"""	
+    extract the ego-centric network of nodeID
+    """    
     def egoNetwork(self, nodeID):
         rtnGraph = Graph()
         edgeID = 0
@@ -73,24 +73,64 @@ class GraphCache:
         
         return rtnGraph
 
+    def loadNodesName1(self, nodes):
+        pipelines={}
+        for node in nodes:
+            idx = self.profileCluster.getRedisIdx(node)
+            if not idx in pipelines:
+                redis = self.profileCluster.getRedis(node, 1)
+                pipelines[idx]=redis.pipeline(transaction=False)
+                pipelines[idx].hmget(node,'id','name')
+                
+        profiles={}
+        
+        for idx in pipelines:
+            for profile in pipelines[idx].execute():
+                logger.info(profile)
+                profiles[profile[0]]= profile[1]
+        return profiles
+
+    def loadNodesName(self, nodes):
+        profiles={}
+        logger.info("searching for nodes:%s"%str(nodes))
+        for node in nodes:
+            idx = self.profileCluster.getRedisIdx(node)
+            redis = self.profileCluster.getRedis(node, 1)
+            name=redis.hget(node,'name')
+            profiles[node]=name
+            if name:
+                logger.info(u'%d:%s'%(node, name.decode('utf-8')))
+
+        return profiles
+
     def loadProfiles(self, graph):
-       pipelines={}
-       for node in graph.nodes():
-           idx = self.profileCluster.getRedisIdx(node)
-           if not idx in pipelines:
-               redis = self.profileCluster.getRedis(node)
-               pipelines[idx]=redis.pipeline(transaction=False)
-           pipelines[idx].hgetall(node)
-       profiles={}
-       for idx in pipelines:
-           pipelines[idx]=[pipelines[idx].execute(),0]
+        profiles={}
+        for node in graph.nodes():
+            idx = self.profileCluster.getRedisIdx(node)
+            redis = self.profileCluster.getRedis(node, 1)
+            rec = redis.hgetall(node)
+            profiles[node]=rec
+        return profiles
+
+    def loadProfiles1(self, graph):
+        pipelines={}
+        for node in graph.nodes():
+            idx = self.profileCluster.getRedisIdx(node)
+            if not idx in pipelines:
+                redis = self.profileCluster.getRedis(node, 1)
+                pipelines[idx]=redis.pipeline(transaction=False)
+            pipelines[idx].hgetall(node)
+        profiles={}
+        for idx in pipelines:
+            pipelines[idx]=pipelines[idx].execute()
+       #for idx in pipelines:
+       #   for profile in pipelines[idx].execute():
+       #      profiles[profile['id']]=profile
      
-       logger.info(str(pipelines))
-       for node in graph.nodes():
-           rec=pipelines[self.profileCluster.getRedisIdx(node)]
-           profiles[node]=rec[0][rec[1]]
-           rec[1] += 1
-       return profiles
+        logger.info(str(pipelines))
+        for node in graph.nodes():
+            profiles[node]=pipelines[self.profileCluster.getRedisIdx(node)].pop()
+        return profiles
 
     """
     get the neighbours of nodeID
@@ -108,7 +148,7 @@ class GraphCache:
     read neighbours of nodeID from redis cluster
     """
     def fetchNode(self, nodeID):
-        redis= self.dataCluster.getRedis(nodeID)
+        redis= self.dataCluster.getRedis(nodeID,0)
         neighbours = redis.smembers(nodeID)
         #self.dataCluster.returnRedis(nodeID, redis)
         if len(neighbours) > 0:
@@ -128,11 +168,5 @@ if __name__ == "__main__":
            ("10.11.1.56", 6379), ("10.11.1.57", 6379), ("10.11.1.58", 6379), ("10.11.1.61", 6379),
             ("10.11.1.62", 6379), ("10.11.1.63", 6379)], 0)
     dataCluster.start()
-    
-    pCluster = RedisCluster([ ("10.11.1.64", 6379)], 1)
-    pCluster.start()
-    graphCache = GraphCache(dataCluster, pCluster)
-    graph = graphCache.egoNetwork("1000048833")
-    print str(graph)
-    print str(graphCache.loadProfiles(graph))
-    
+    graphCache = GraphCache(dataCluster)
+    print str(graphCache.egoNetwork("1000048833"))
