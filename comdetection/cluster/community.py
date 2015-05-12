@@ -261,13 +261,13 @@ class Community():
         
         curTask = self
         i = 1
-        curTask.printCommunity()
+        #curTask.printCommunity()
         while curTask.clusterSize() > self.minC and i < self.maxLevel:    
             print "start level:%d"%(i)
             curTask = curTask.genNextCommTask()
             curTask.oneLevel()
             curTask.postProcess()
-            curTask.printCommunity()
+            #curTask.printCommunity()
             cMapChain.append(curTask.n2c)
             i+=1
         lastMap = cMapChain.pop()

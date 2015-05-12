@@ -7,7 +7,7 @@ from community import Community
 import csv
 import sys
 
-if (__name__ == "__main__"):
+def localTest():
     f = open("../Community_latest/graph.bin","rb")
     size = struct.unpack('i', f.read(4))
     g = Graph()
@@ -47,3 +47,7 @@ if (__name__ == "__main__"):
     comm.printCommunity()
     print "--------------------------------"
     #comm.genClusterGraph()
+    
+def remoteDataTest():
+    
+if (__name__ == "__main__"):
