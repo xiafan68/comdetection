@@ -3,38 +3,46 @@
 #
 #
 #
-import csv
-import sys
 from cluster.graph import Graph
+from xredis.RedisCluster import RedisCluster
 from lru import LRUCacheDict
+import logging
+
+logger = logging.getLogger(__name__)
+
 class GraphCache:
-    def __init__(self, dataCluster):
+    def __init__(self, dataCluster, profileCluster):
         self.dataCluster = dataCluster
-		
+        self.profileCluster = profileCluster
+
         self.nodeAdj = LRUCacheDict(10240, 10)  # 邻接表 nodeID-> [nodeID]
-        self.nodeProfile = LRUCacheDict(10240, 10)  # profiles
+        self.nodeProfile = LRUCacheDict(102400, 10)  # profiles
         self.edgeNum = 0
 
     # 插入一条边
     def addEdge(self, start, end):
-        if start in self.nodeAdj:
-            self.nodeAdj[start] = []
-        self.nodeAdj[start].append(end)
+        if not self.nodeAdj.has_key(start):
+            self.nodeAdj[start] = set()
+        self.nodeAdj[start].add(end)
         self.edgeNum += 1
+    
     def addEdges(self, start, nodes):
-        if start in self.nodeAdj:
-            self.nodeAdj[start] = []
-        self.nodeAdj[start].extend(nodes)
+        if not self.nodeAdj.has_key(start):
+            self.nodeAdj[start] = set()
+        self.nodeAdj[start].update(nodes)
+        self.edgeNum += len(nodes)
         
     """
     删除nodeID及其出边
     """
     def delNode(self, nodeID):
-        self.edgeNum -= len(sefl.nodeAdj[nodeID])
+        self.edgeNum -= len(self.nodeAdj[nodeID])
         del self.nodeAdj[nodeID]
     
     def existNode(self, nodeID):
-        return nodeID in self.nodeAdj
+        if not self.nodeAdj.has_key(nodeID):
+            self.fetchNode(nodeID)
+        return self.nodeAdj.has_key(nodeID)
     
     # 获取节点集
     def nodes(self):
@@ -42,11 +50,11 @@ class GraphCache:
 
     # 获取一个节点相邻的节点，返回(node, edgeID)
     def neighbours(self, node):
-        return self.nodeAdj[node].items()
+        return self.nodeAdj[node]
 
     def nodeSize(self):
         return len(self.nodeAdj)
-	"""
+    """
 	extract the ego-centric network of nodeID
 	"""	
     def egoNetwork(self, nodeID):
@@ -60,25 +68,51 @@ class GraphCache:
                 cNeighbours = self.loadNeighbours(neighbour)
                 for cNeighbour in cNeighbours:
                     if cNeighbour in neighbours:
-                        rtnGraph.addEdge(edgeID, nodeID, neighbour, 1.0)
+                        rtnGraph.addEdge(edgeID, neighbour, cNeighbour, 1.0)
                         edgeID += 1
-    	return rtnGraph
-   
+        
+        return rtnGraph
+
+    def loadProfiles(self, graph):
+       pipelines={}
+       for node in graph.nodes():
+           idx = self.profileCluster.getRedisIdx(node)
+           if not idx in pipelines:
+               redis = self.profileCluster.getRedis(node)
+               pipelines[idx]=redis.pipeline(transaction=False)
+           pipelines[idx].hgetall(node)
+       profiles={}
+       for idx in pipelines:
+           pipelines[idx]=[pipelines[idx].execute(),0]
+     
+       logger.info(str(pipelines))
+       for node in graph.nodes():
+           rec=pipelines[self.profileCluster.getRedisIdx(node)]
+           profiles[node]=rec[0][rec[1]]
+           rec[1] += 1
+       return profiles
+
     """
     get the neighbours of nodeID
     """
     def loadNeighbours(self, nodeID):
-    	if not self.existNode(nodeID):
-    		fetchNode(nodeID)
-    	return self.neighbour(nodeID)
-    
+        if not self.existNode(nodeID):
+            self.fetchNode(nodeID)
+            
+        if not self.existNode(nodeID):
+            return set()
+        else:
+            return self.neighbours(nodeID)
+        
     """
     read neighbours of nodeID from redis cluster
     """
     def fetchNode(self, nodeID):
-        neighbours = self.dataCluster.getRedis(nodeID).get(nodeID)
-        self.addEdges(nodeID, neighbours)
-  
+        redis= self.dataCluster.getRedis(nodeID)
+        neighbours = redis.smembers(nodeID)
+        #self.dataCluster.returnRedis(nodeID, redis)
+        if len(neighbours) > 0:
+            self.addEdges(nodeID, neighbours)
         
 if __name__ == "__main__":
     # csvReader = csv.reader(file(sys.argv[1],'rb'), csv.excel_tab)
@@ -89,8 +123,16 @@ if __name__ == "__main__":
     #    g.addEdge(i, edgeArr[0], edgeArr[1], 1.0)
     #    i+=1
     # g.printGraph()
-    g = Graph()
-    g.addEdge(0 , 1 , 2, 3)
-    g.addEdge(1, 2, 1, 3) 
-    g.addEdge(2, 1, 3, 3)
-    g.printGraph()
+    dataCluster = RedisCluster([ ("10.11.1.51", 6379),
+            ("10.11.1.52", 6379), ("10.11.1.53", 6379), ("10.11.1.54", 6379), ("10.11.1.55", 6379),
+           ("10.11.1.56", 6379), ("10.11.1.57", 6379), ("10.11.1.58", 6379), ("10.11.1.61", 6379),
+            ("10.11.1.62", 6379), ("10.11.1.63", 6379)], 0)
+    dataCluster.start()
+    
+    pCluster = RedisCluster([ ("10.11.1.64", 6379)], 1)
+    pCluster.start()
+    graphCache = GraphCache(dataCluster, pCluster)
+    graph = graphCache.egoNetwork("1000048833")
+    print str(graph)
+    print str(graphCache.loadProfiles(graph))
+    

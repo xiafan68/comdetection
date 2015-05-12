@@ -3,8 +3,6 @@
 #
 #
 #
-import csv
-import sys
 
 class Graph():
     def __init__(self):
@@ -65,26 +63,25 @@ class Graph():
     def neighWeight(self, node):
         return self.nodeWeight[node]
 
-    def getEdge(self, id):
-        return self.edges[id]
+    def getEdge(self, nodeID):
+        return self.edges[nodeID]
     def nodeSize(self):
         return len(self.nodeAdj)
     def edgeSize(self):
         return len(self.edges)
 
-    def printGraph(self):
-        print "graph:*****************"
+    def __str__(self):
+        ret = "graph:*****************\n"
         for node in self.nodes():
-            adjStr = str.format("%s -> " % (node))
+            ret += str.format("%s -> " % (node))
             for edgePair in self.neighbours(node):
                 edge = self.getEdge(edgePair[1])
-                adjStr += str.format("(%s|%f)," % (edgePair[0], edge[3]))
+                ret += str.format("(%s|%f)," % (edgePair[0], edge[3]))
             if self.getSelfWeight(node) > 0.0:
-                adjStr += str.format("(%s|%f)," % (str(node), self.getSelfWeight(node)))
-            print adjStr
-            print "----------------"
-        print "***********************"
-
+                ret += str.format("(%s|%f)," % (str(node), self.getSelfWeight(node)))
+            ret +="\n----------------\n"
+        ret += "***********************\n"
+        return ret
 if __name__ == "__main__":
     # csvReader = csv.reader(file(sys.argv[1],'rb'), csv.excel_tab)
     # i = 0

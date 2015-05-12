@@ -8,5 +8,5 @@ class Config:
     def load(self):
         Config.config = ConfigParser.ConfigParser()
         Config.config.read(configPath)
-     Config.config = ConfigParser.ConfigParser()
+        Config.config = ConfigParser.ConfigParser()
         Config.config.read(configPath)

@@ -101,7 +101,7 @@ class LRUCacheDict(object):
 
     def __getitem__(self, key):
         t = int(time())
-        del self.__access_times[key]
+        #del self.__access_times[key]
         self.__access_times[key] = t
         self.cleanup()
         return self.__values[key]
