@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-__version__ = '1.1.3'
+__version__ = '1.1.4'
 __author__ = 'Liao Xuefeng (askxuefeng@gmail.com)'
 
 '''
@@ -9,16 +9,11 @@ Python client SDK for sina weibo API using OAuth 2.
 '''
 
 try:
-    import json
-except ImportError:
-    import simplejson as json
-
-try:
     from cStringIO import StringIO
 except ImportError:
     from StringIO import StringIO
 
-import gzip, time, hmac, base64, hashlib, urllib, urllib2, logging, mimetypes, collections
+import gzip, time, json, hmac, base64, hashlib, urllib, urllib2, logging, mimetypes, collections
 
 class APIError(StandardError):
     '''
@@ -126,7 +121,6 @@ def _read_body(obj):
     using_gzip = obj.headers.get('Content-Encoding', '')=='gzip'
     body = obj.read()
     if using_gzip:
-        logging.info('gzip content received.')
         gzipper = gzip.GzipFile(fileobj=StringIO(body))
         fcontent = gzipper.read()
         gzipper.close()
@@ -157,7 +151,7 @@ def _http_call(the_url, method, authorization, **kw):
     if boundary:
         req.add_header('Content-Type', 'multipart/form-data; boundary=%s' % boundary)
     try:
-        resp = urllib2.urlopen(req)
+        resp = urllib2.urlopen(req, timeout=5)
         body = _read_body(resp)
         r = _parse_json(body)
         if hasattr(r, 'error_code'):
@@ -231,8 +225,7 @@ class APIClient(object):
                 data.expires = data.expires_in = time.time() + expires
             return data
         return None
- 
-        
+
     def set_access_token(self, access_token, expires):
         self.access_token = str(access_token)
         self.expires = float(expires)
@@ -249,11 +242,21 @@ class APIClient(object):
                 _encode_params(client_id = self.client_id, \
                         response_type = response_type, \
                         redirect_uri = redirect, **kw))
-
+                        
+    def _parse_access_token(self, r):
+        '''
+        new:return access token as a JsonDict: {"access_token":"your-access-token","expires_in":12345678,"uid":1234}, expires_in is represented using standard unix-epoch-time
+        '''
+        current = int(time.time())
+        expires = r.expires_in + current
+        remind_in = r.get('remind_in', None)
+        if remind_in:
+            rtime = int(remind_in) + current
+            if rtime < expires:
+                expires = rtime
+        return JsonDict(access_token=r.access_token, expires=expires, expires_in=expires, uid=r.get('uid', None))
+        
     def request_access_token(self, code, redirect_uri=None):
-        '''
-        return access token as a JsonDict: {"access_token":"your-access-token","expires_in":12345678,"uid":1234}, expires_in is represented using standard unix-epoch-time
-        '''
         redirect = redirect_uri if redirect_uri else self.redirect_uri
         if not redirect:
             raise APIError('21305', 'Parameter absent: redirect_uri', 'OAuth2 request')
@@ -262,14 +265,7 @@ class APIClient(object):
                 client_secret = self.client_secret, \
                 redirect_uri = redirect, \
                 code = code, grant_type = 'authorization_code')
-        current = int(time.time())
-        expires = r.expires_in + current
-        remind_in = r.get('remind_in', None)
-        if remind_in:
-            rtime = int(remind_in) + current
-            if rtime < expires:
-                expires = rtime
-        return JsonDict(access_token=r.access_token, expires=expires, expires_in=expires, uid=r.get('uid', None))
+        return self._parse_access_token(r)
 
     def refresh_token(self, refresh_token):
         req_str = '%s%s' % (self.auth_url, 'access_token')
@@ -278,14 +274,7 @@ class APIClient(object):
             client_secret = self.client_secret, \
             refresh_token = refresh_token, \
             grant_type = 'refresh_token')
-        current = int(time.time())
-        expires = r.expires_in + current
-        remind_in = r.get('remind_in', None)
-        if remind_in:
-            rtime = int(remind_in) + current
-            if rtime < expires:
-                expires = rtime
-        return JsonDict(access_token=r.access_token, expires=expires, expires_in=expires, uid=r.get('uid', None))
+        return self._parse_access_token(r)
 
     def is_expires(self):
         return not self.access_token or time.time() > self.expires

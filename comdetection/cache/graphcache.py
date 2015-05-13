@@ -7,6 +7,7 @@ from cluster.graph import Graph
 from xredis import RedisCluster
 from lru import LRUCacheDict
 import logging
+from util.strutil import *
 
 logger = logging.getLogger(__name__)
 
@@ -58,11 +59,13 @@ class GraphCache:
     extract the ego-centric network of nodeID
     """    
     def egoNetwork(self, nodeID):
+        nodeID = strToUnicode(nodeID)
         rtnGraph = Graph()
         edgeID = 0
         if self.existNode(nodeID):
             neighbours = self.loadNeighbours(nodeID)
             for neighbour in neighbours:
+                neighbour=strToUnicode(neighbour)
                 rtnGraph.addEdge(edgeID, nodeID, neighbour, 1.0)
                 edgeID += 1
                 cNeighbours = self.loadNeighbours(neighbour)

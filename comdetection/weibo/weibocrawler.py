@@ -4,6 +4,7 @@ import logging
 from time import sleep
 from random import randint
 
+crawlerLogger = logging.getLogger("weibocrawler")
 def weiboCrawler():
     pass
 
@@ -27,10 +28,10 @@ manage token refresh
 class TokenManager(object):
     
     def nextToken(self):
-        return Token(consumer_key="296882199", consumer_secret='1695e3222429c090a86a4ad5a10f01e7', 
-                     token="2.00nFKf3DmNsuOD4d081d20a7sCYuaD",
-                     secret='1695e3222429c090a86a4ad5a10f01e7',
-                     redirectUrl='http://mblog.city.sina.com.cn/index.php?app=admin&mod=Account&act=callback',
+        return Token(consumer_key="", consumer_secret='', 
+                     token="2.",
+                     secret='',
+                     redirectUrl='',
                      count=1, timestamp=1)
     
 """
@@ -45,7 +46,6 @@ class WeiboCrawler(object):
 
 
 class WeiboCallWrapper(object):
-    logger = logging.getLogger("WeiboCallWrapper")
     def __init__(self, name, tm): 
         self.name = [name]
         self.tm = tm
@@ -69,11 +69,16 @@ class WeiboCallWrapper(object):
                 if ex.error_code == 10006:
                     #refresh the token
                     pass
+                if ex.error_code== 20101:
+                    pass
                 # parse the error type and execute corresponding action
-                WeiboCallWrapper.logger.error("iter %d args:%s;error:%s"%(i, str(kw),str(ex)))
+                crawlerLogger.error("iter %d args:%s;error:%s"%(i, str(kw),str(ex)))
                 pass
-            sTime = randint(1,10)
-            sleep(sTime)
+            except Exception, ex:
+                crawlerLogger.error(str(ex))
+                pass
+            sTime = randint(1,9)
+            #sleep(sTime)
 
 if __name__ == "__main__":
     c = WeiboCrawler(TokenManager())

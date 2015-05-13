@@ -8,7 +8,7 @@ class UserDataCrawler(object):
         self.weiboCrawler = weiboCrawler
         
     def getTweet_(self,mid):
-        logger.info("crawling %s"%(mid))
+        logger.info("crawling tweet %s"%(mid))
         status = self.weiboCrawler.statuses.show.get(id=mid)
         t = Tweet()
         if status:
@@ -44,7 +44,7 @@ class FileBasedTweetDao(UserDataCrawler):
         
     def getTweet(self, mid):
         if not (mid in self.tmap):
-            t = super(FileBasedTweetDao, self).getTweet_(mid)
+            t = None #super(FileBasedTweetDao, self).getTweet_(mid)
             if t:
                 self.writeTweet(t)
                 self.tmap[t.mid] = t

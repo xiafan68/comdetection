@@ -35,8 +35,8 @@ class Community():
         self.neigh_pos={}
         
 
-    #dnodecomm:
-    #w_degree:一个节点边的的weight
+    #dnodecomm:node指向被删除comm的边的权重之和
+    #w_degree:一个节点边的的weight之和
     def modularity_gain(self, node, comm, dnodecomm, w_degree):
         totc=self.tot[comm]
         m2=self.g.getTotalWeight()*2
@@ -109,7 +109,9 @@ class Community():
         new_mod = self.modularity()
         size = self.g.nodeSize()
 
-        random_order=[] #干什么?
+        #以下这段只是随机一个遍历节点的顺序，遍历的顺序其实对聚类的效果有影响
+        """
+        random_order=[] 
         for node in self.g.nodes():
             random_order.append(node)
         for i in range(0, size):
@@ -118,7 +120,9 @@ class Community():
             tmp = random_order[i]
             random_order[i] = random_order[rand_pos]
             random_order[rand_pos]=tmp
-            
+        """
+        random_order=self.g.nodes()
+             
         cont = True
         while (cont):
             cur_mod = new_mod
@@ -195,8 +199,6 @@ class Community():
         for (edge, weight) in newEdgeMap.items():
             graph.addEdge(i, edge[0], edge[1],weight)
             i+=1
-        
-        print graph.printGraph()
 
         comm = Community(graph, self.min_modularity, self.minC, self.maxLevel)
         return comm
@@ -209,9 +211,12 @@ class Community():
     
     def postProcess(self):
         outlier =self.outlierComm()
+        group = None
         for node in self.n2c:
             if self.n2c[node] in outlier:
-                self.n2c[node]="$outlier$"
+                if not group:
+                    group = node
+                self.n2c[node]= group#"$outlier$"
 
     #过小的community视为异常点
     def outlierComm(self):
