@@ -10,13 +10,13 @@ class DaoCallWrapper(object):
     def __init__(self, method, daos):
         self.method = method
         self.daos = daos
-    def __call__(self, **kw):
+    def __call__(self, arg):
         ret = None
         calledDaos = []
         for dao in self.daos:
             calledDaos.append(dao)
             attr = getattr(dao, self.method)
-            ret = attr(**kw)
+            ret = attr(arg)
             if ret:
                 break
         if ret:
@@ -26,7 +26,7 @@ class DaoCallWrapper(object):
                 dao = calledDaos.pop()
                 try:
                     attr = getattr(dao, method)
-                    attr(ret)
+                    attr(ret, arg)
                 except Exception,ex:
                     
                     pass
@@ -42,18 +42,18 @@ class ChainedDao(object):
     
 
 class test1:
-    def getTest(self):
+    def getTest(self, uid):
         return None
-    def updateTest(self, data):
-        print "test1 update %s"%(data)
+    def updateTest(self, data, kw):
+        print "test1 update %s, args:%s"%(data, str(kw))
         
 class test2:
-    def getTest(self):
-        return "test2"
-    def updateTest(self):
+    def getTest(self, uid):
+        return "test2 %s"%(uid)
+    def updateTest(self, data, **kw):
         pass 
 if __name__ == "__main__":
     call = ChainedDao([test1(),test2()])
-    print call.getTest()
+    print call.getTest(1)
     
     

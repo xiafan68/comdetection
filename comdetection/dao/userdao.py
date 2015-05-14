@@ -1,4 +1,4 @@
-#coding:UTF8
+# coding:UTF8
 """
 用于访问tweets数据的类,这个类只能从文件中将数据全部导入内存
 """
@@ -7,21 +7,21 @@ from weiboobj import *
 from weibo.weibocrawler import *
 import os
 
-class UserDataCrawler(object):
+class UserDataCrawlerDao(object):
     def __init__(self, weiboCrawler):
         self.weiboCrawler = weiboCrawler
         
-    def getUserProfile_(self,uid):
+    def getUserProfile(self, uid):
         user = self.weiboCrawler.users.show.get(uid=uid)
         up = UserProfile()
         if user:
-            for k,v in user.items():
-                up.setattr(k,v)
+            for k, v in user.items():
+                up.setattr(k, v)
             return up
         else:
             return None
         
-    def getMids_(self, uid):
+    def getUserMids(self, uid):
         jsonRet = self.weiboCrawler.statuses.user_timeline.ids.get(uid=uid)
         if jsonRet:
             return jsonRet['statuses']
@@ -29,22 +29,21 @@ class UserDataCrawler(object):
             return []    
      
     
-    def getUTags_(self, uid):
-        ret=[]
+    def getUserTags(self, uid):
+        ret = []
         jsonRet = self.weiboCrawler.tags.get(uid=uid)
         if jsonRet:
             for tagTuple in jsonRet:
-                for (k,v) in tagTuple.items():
+                for (k, v) in tagTuple.items():
                     if k != 'flag' and k != 'weight':
                         ret.append(v)  
         return ret    
 
-class FileBasedUserDao(UserDataCrawler):
-    def __init__(self, dataDir, weiboCrawler):
-        super(FileBasedUserDao, self).__init__(weiboCrawler)
-        self.umap={}
-        self.uMids={}
-        self.uTags={}
+class FileBasedUserDao(object):
+    def __init__(self, dataDir):
+        self.umap = {}
+        self.uMids = {}
+        self.uTags = {}
         self.dataDir = dataDir
         
     def open(self):
@@ -59,7 +58,7 @@ class FileBasedUserDao(UserDataCrawler):
             for line in self.tagfd.readlines():
                 if not line:
                     break
-                fields=line.split("\t")
+                fields = line.split("\t")
                 uid = fields[0].decode('utf8')
                 fields = [field.decode('utf8') for field in fields[1:-1]]
                 self.uTags[uid] = fields
@@ -77,7 +76,7 @@ class FileBasedUserDao(UserDataCrawler):
                     break
                 t = UserProfile()
                 t.parse(line)
-                self.umap[t.id]=t
+                self.umap[t.id] = t
         except Exception, ex:
             print str(ex)
     """
@@ -97,53 +96,106 @@ class FileBasedUserDao(UserDataCrawler):
             print str(ex)
             
     def getUserProfile(self, uid):
-        if not(uid in self.umap):
-            up = self.getUserProfile_(uid)
-            if up:
-                self.writeUserProfile(up)
-                self.umap[str(up.id)]=up
         return self.umap.get(uid, None)
     
     def getUserProfiles(self, uids):
-        ret=[]
+        ret = []
         for uid in uids:
             ret.append(self.getUserProfile(uid))
     
-    def getMids(self, uid):
-        if not( uid in self.uMids):
-            mids = None#super(FileBasedUserDao, self).getMids_(uid)
-            if mids:
-                self.utfd.write("%s\t%s"%(uid, ",".join(mids)))
-                self.utfd.write("\n")
-                self.utfd.flush()
-                self.uMids[uid]= mids
+    def getUserMids(self, uid):
         return self.uMids.get(uid, [])
     
     def getUserTags(self, uid):
-        if not (uid in self.uTags):
-            tags = super(FileBasedUserDao, self).getUTags_(uid)
-            if tags:
-                tstr = "\t".join(tags)
-                rec = "%s\t%s\n"%(uid, tstr)
-                self.tagfd.write(rec.encode('utf8'))
-                self.tagfd.flush()
-                self.uTags[uid] = tags
-        return self.uTags.get(uid,[])
+        return self.uTags.get(uid, [])
     
-    def writeUserProfile(self, user):
+    def updateUserMids(self, mids, uid):
+        self.utfd.write("%s\t%s" % (uid, ",".join(mids)))
+        self.utfd.write("\n")
+        self.utfd.flush()
+        self.uMids[uid] = mids
+
+    def updateUserTags(self, utags, uid):
+        tstr = "\t".join(utags)
+        rec = "%s\t%s\n" % (uid, tstr)
+        self.tagfd.write(rec.encode('utf8'))
+        self.tagfd.flush()
+        self.uTags[uid] = utags
+                
+    def updateUserProfile(self, user, uid):
         self.fd.write(str(user))
         self.fd.write("\n")
         self.fd.flush()
+        self.umap[str(up.id)] = up
     
     def close(self):
         self.fd.close()
         self.utfd.close()
         self.tagfd.close()
 
-class MysqlUserDao(UserDataCrawler):
-    import MySQLdb
-    def __init__(self, config):
-            
+import MySQLdb
+class MysqlUserDao(object):
+
+    def __init__(self, conn):
+        self.conn = conn
+        
+    def open(self):
+        pass
+    
+    def getUserProfile(self, uid):
+        cursor = self.conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor.execute("select * from userprofile where uid='%s';" % (uid))
+        res = cursor.fetchall()
+        
+        ret = None
+        for rec in res:
+            ret = UserProfile()
+            for (k, v) in rec.items():
+                ret.setattr(k, v) 
+            break
+        cursor.close()
+        return ret
+    
+    def updateUserProfile(self, user, uid):
+        cursor = self.conn.cursor()
+        cursor.execute("insert into userprofile(%s) values(%s) on duplicate key update %s where uid=%s;" % (user.getSQLColums(), user.getSQLValues(), user.getUpdate("uid"), uid))
+        cursor.close()
+    
+    def getUserMids(self, uid):
+        return self.uMids.get(uid, [])
+    
+    def updateUserMids(self, mids, uid):
+        cursor = self.conn.cursor()
+        midstr = ",".join(mids)
+        cursor.execute("insert into usermids(uid, tags) values(%s, '%s') on duplicate key update tags='%s' where uid=%s;" % (uid, midstr, midstr,uid))
+        cursor.close()
+
+    def getUserTags(self, uid):
+        cursor = self.conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        cursor.execute("select * from usertags where uid='%s';" % (uid))
+        res = cursor.fetchall()
+        
+        ret = []
+        for rec in res:
+            for (k, v) in rec.items():
+                ret = v.split(",")
+            break
+        cursor.close()
+        return ret
+    
+    def updateUserTags(self, utags, uid):
+        tstr = "\t".join(utags)
+        rec = "%s\t%s\n" % (uid, tstr)
+        self.tagfd.write(rec.encode('utf8'))
+        self.tagfd.flush()
+        self.uTags[uid] = utags
+                
+    
+    
+    def close(self):
+        self.fd.close()
+        self.utfd.close()
+        self.tagfd.close()
 """
 用于访问tweets数据的类,这个类只能从文件中将数据全部导入内存
 """
@@ -160,7 +212,7 @@ class RedisUserDao(UserDataCrawler):
             
             t = Tweet()
             t.parse(line)
-            self.tmap[t.mid]=t
+            self.tmap[t.mid] = t
     
     def getUser(self, uid):
         redis = self.redisCluster.getRedis(uid)
@@ -175,7 +227,7 @@ class RedisUserDao(UserDataCrawler):
         return u
     
     def getUsers(self, uids):
-        ret=[]
+        ret = []
         for uid in uids:
            ret.append(self.getUser(uid))
         return ret
@@ -193,7 +245,7 @@ class RedisUserDao(UserDataCrawler):
 
 if __name__ == "__main__":
     c = WeiboCrawler(TokenManager())
-    tdao = FileBasedUserDao("../../ups.data", "../../umids.txt",c)
+    tdao = FileBasedUserDao("../../ups.data", "../../umids.txt", c)
     tdao.open()
     up = tdao.getUserProfile("1707446764")
     import jieba

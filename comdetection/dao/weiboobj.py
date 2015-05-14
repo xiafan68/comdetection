@@ -11,7 +11,12 @@ class WeiboObj(object):
         self.fields = line.split(Tweet.DELIMITER)
         
     def __str__(self):
-        return Tweet.DELIMITER.join([field.encode('utf8') for field in self.fields])
+        ret=[]
+        for field in self.fields:
+            if isinstance(field, unicode):
+                field = field.decode('utf8')
+            ret.append(str(field))
+        return Tweet.DELIMITER.join(ret)
     
     def __getattr__(self, name):
         if name in self.schema and len(self.fields) > 0:
@@ -19,6 +24,28 @@ class WeiboObj(object):
         else:
             raise AttributeError(name)
     
+    def getSQLColums(self):
+        return ",".join(self.schema)
+    def getSQLValues(self):
+        vals = []
+        for idx in self.schema.values():
+            if isinstance(self.fields[idx], basestring):
+                vals.append("'%s'"%(self.field[idx]))
+            else:
+                vals.append(self.field[idx])
+        return ",".join(vals)
+    
+    def getUpdate(self, keyField):
+        updates=[]
+        for (field, idx) in self.schema.items():
+            if field != keyField:
+                v = self.fields[idx]
+                strfmt = "%s=%s"
+                if isinstance(v, basestring):
+                    strfmt="%s='%s'"
+                updates.append(strfmt%(field,v))
+        return ",".join(updates)
+                
     def setattr(self, name, value):
         if name in self.schema:
             if not isinstance(value, unicode) and isinstance(value, basestring):
@@ -28,7 +55,7 @@ class WeiboObj(object):
                     print value
             if isinstance(value, unicode):
                 value = value.replace("\t", " ")
-            self.fields[self.schema[name]]=unicode(value)
+            self.fields[self.schema[name]]=value
 
 class Tweet(WeiboObj):
     def __init__(self):
@@ -44,16 +71,22 @@ class UserProfile(WeiboObj):
     #for compatibility with previous format
     mapping={"location":"loc","description":"descr", "followers_count":"folCount","friends_count":"friCount","statuses_count":"statuscount","favourites_count":"favorcount", "verified_type":"vtype", "created_at":"createat"}
     def __init__(self):
-        fields=["id", "name","province","city","location","descr","url", "profile_image_url","gender", "followers_count", "friends_count", "statuses_count","favourites_count", "created_at", "verified","verified_type","verified_reason"]
+        fields=["uid", "name","province","city","location","descr","url", "profile_image_url","gender", "folCount", "friCount", "statuscount","favorcount", "createat", "verified","vtype","verified_reason"]
         schema={}
-        id=0
+        idx=0
         for field in fields:
-            schema[field] = id
-            id += 1
+            schema[field] = idx
+            idx += 1
         super(UserProfile, self).__init__(schema)
 
     def setattr(self, name, value):
         if name in UserProfile.mapping:
             name=UserProfile.mapping[name]
         super(UserProfile, self).setattr(name, value)
-         
+
+if __name__ == "__main__":
+    u = UserProfile()
+    for field in UserProfile.mapping.values():
+        u.setattr(field, field)
+    u.setattr("id", 1)
+    print u.getUpdate("name")
