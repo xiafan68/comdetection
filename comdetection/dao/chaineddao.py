@@ -6,17 +6,10 @@
 2. 随后翻转更新每一层的数据
 """
 
-class ChainedCall(object):
-    def __init__(self, daos, method):
-        self.daos
-class ChainedDao(object):
-    def __init__(self, daos):
-        self.daos = daos
-        
-    def __getattr__(self, method):
+class DaoCallWrapper(object):
+    def __init__(self, method, daos):
         self.method = method
-        return self
-        
+        self.daos = daos
     def __call__(self, **kw):
         ret = None
         calledDaos = []
@@ -37,4 +30,30 @@ class ChainedDao(object):
                 except Exception,ex:
                     
                     pass
-        return ret
+        return ret    
+
+class ChainedDao(object):
+    def __init__(self, daos):
+        self.daos = daos
+        
+    def __getattr__(self, method):
+        return DaoCallWrapper(method, self.daos)
+        
+    
+
+class test1:
+    def getTest(self):
+        return None
+    def updateTest(self, data):
+        print "test1 update %s"%(data)
+        
+class test2:
+    def getTest(self):
+        return "test2"
+    def updateTest(self):
+        pass 
+if __name__ == "__main__":
+    call = ChainedDao([test1(),test2()])
+    print call.getTest()
+    
+    
