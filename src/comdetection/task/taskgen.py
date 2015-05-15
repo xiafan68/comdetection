@@ -8,11 +8,10 @@ from Queue import Queue
  exists potential risk that workers are computing for the same groups of nodes
 """
 class TaskGen:
-    def __init__(self, taskClient, graphCache):
-        self.taskClient = taskClient
-        self.taskClient.select(1)  # 1 is used to store jobs
-                
-        self.graphCache = graphCache
+    def __init__(self, datalayer):
+        #1 for job
+        self.taskClient = datalayer.getJobRedis()
+        self.graphCache = datalayer.getGraphCache()
         
         self.IDQueue = Queue()
         self.localJobQueue = [] 

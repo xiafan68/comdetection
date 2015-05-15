@@ -1,9 +1,10 @@
 # coding:UTF8
 from weiboobj import Tweet
 import logging
+from dbinfo import TWEET_DB
 
 logger = logging.getLogger("tweetdao")
-class UserDataCrawler(object):
+class TweetCrawlerDao(object):
     def __init__(self, weiboCrawler):
         self.weiboCrawler = weiboCrawler
         
@@ -32,9 +33,8 @@ class UserDataCrawler(object):
 """
 用于访问tweets数据的类,这个类只能从文件中将数据全部导入内存
 """
-class FileBasedTweetDao(UserDataCrawler):
-    def __init__(self, tfile,weiboCrawler):
-        super(FileBasedTweetDao, self).__init__(weiboCrawler)
+class FileBasedTweetDao(object):
+    def __init__(self, tfile):
         self.tmap = {}
         self.tfile = tfile
     
@@ -70,7 +70,10 @@ class FileBasedTweetDao(UserDataCrawler):
         self.fd.close()
         
         
-        
+class DBTweetDao(object):
+    def __init__(self, conn):
+        self.conn = conn
+       
 """
 用于访问tweets数据的类,这个类只能从文件中将数据全部导入内存
 """
@@ -86,7 +89,7 @@ class RedisTweetDao(object):
             self.tmap[t.mid] = t
             
     def getTweet(self, mid):
-        redis = self.redisCluster.getRedis(mid)
+        redis = self.redisCluster.getRedis(mid, TWEET_DB)
         t = Tweet()
         for field in t.schema:
             t.setattr(field, redis.hget(mid, field))
@@ -97,7 +100,7 @@ class RedisTweetDao(object):
             ret.append(self.getTweet(mid))
     
     def writeTweet(self, tweet):
-        redis = self.redisCluster.getRedis(tweet.mid)
+        redis = self.redisCluster.getRedis(tweet.mid, TWEET_DB)
         pipe = redis.pipeline(transaction=False)
         for field in Tweet.schema:
             pipe.hset(tweet.mid, field, getattr(tweet, field))

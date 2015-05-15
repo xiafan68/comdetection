@@ -6,6 +6,7 @@
 from weiboobj import *
 from weibo.weibocrawler import *
 import os
+from dbinfo import *
 
 class UserDataCrawlerDao(object):
     def __init__(self, weiboCrawler):
@@ -28,7 +29,6 @@ class UserDataCrawlerDao(object):
         else:
             return []    
      
-    
     def getUserTags(self, uid):
         ret = []
         jsonRet = self.weiboCrawler.tags.get(uid=uid)
@@ -76,7 +76,7 @@ class FileBasedUserDao(object):
                     break
                 t = UserProfile()
                 t.parse(line)
-                self.umap[t.id] = t
+                self.umap[t.uid] = t
         except Exception, ex:
             print str(ex)
     """
@@ -134,7 +134,7 @@ class FileBasedUserDao(object):
         self.tagfd.close()
 
 import MySQLdb
-class MysqlUserDao(object):
+class DBUserDao(object):
 
     def __init__(self, conn):
         self.conn = conn
@@ -193,9 +193,7 @@ class MysqlUserDao(object):
     
     
     def close(self):
-        self.fd.close()
-        self.utfd.close()
-        self.tagfd.close()
+        self.conn.close()
 """
 用于访问tweets数据的类,这个类只能从文件中将数据全部导入内存
 """
@@ -207,7 +205,7 @@ class RedisUserDao(object):
         pass
     
     def getUserProfile(self, uid):
-        redis = self.redisCluster.getRedis(uid)
+        redis = self.redisCluster.getRedis(uid, PROFILE_DB)
         fields = redis.hgetall(uid)
         if fields:
             u = UserProfile()
@@ -224,7 +222,7 @@ class RedisUserDao(object):
         return ret
     
     def updateUserProfile(self, user):
-        redis = self.redisCluster.getRedis(user.id)
+        redis = self.redisCluster.getRedis(user.id,PROFILE_DB)
         pipe = redis.pipeline(transaction=False)
         for field in user.schema:
             pipe.hset(user.id, field, getattr(user, field))

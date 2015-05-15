@@ -21,7 +21,7 @@ WorkStatus reportStatus(),
 
 void reAssignJob(1:i16 jobQueueID),
 //compute the cluster for nodeID
-void clusterForNode(1:i32 nodeID),
+void clusterForNode(1:string nodeID),
 //stop processing
 void stop(),
 }

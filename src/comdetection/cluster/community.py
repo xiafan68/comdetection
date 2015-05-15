@@ -110,7 +110,7 @@ class Community():
         size = self.g.nodeSize()
 
         #以下这段只是随机一个遍历节点的顺序，遍历的顺序其实对聚类的效果有影响
-        """
+        
         random_order=[] 
         for node in self.g.nodes():
             random_order.append(node)
@@ -120,8 +120,8 @@ class Community():
             tmp = random_order[i]
             random_order[i] = random_order[rand_pos]
             random_order[rand_pos]=tmp
-        """
-        random_order=self.g.nodes()
+        
+        #random_order=self.g.nodes()
              
         cont = True
         while (cont):

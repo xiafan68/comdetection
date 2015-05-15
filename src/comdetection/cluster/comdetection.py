@@ -1,28 +1,30 @@
 #coding:UTF8
 from xredis.RedisCluster import RedisCluster
-from dao.userdao import FileBasedUserDao
-from dao.tweetdao import FileBasedTweetDao
 from cache.graphcache import GraphCache 
 from dao.weiboobj import *
+from dao.userdao import *
+from dao.tweetdao import *
 from weibo.weibocrawler import *
 from cluster.community import Community
 import jieba
+from threading import Thread
 
 logging.basicConfig(
     level=logging.ERROR,
     format="[%(asctime)s] %(name)s:%(levelname)s: %(message)s"
 )
 
-class CommDetection:
-    def __init__(self, udao, tdao, gcache):
-        self.udao = udao
-        self.tdao = tdao
-        self.gcache = gcache
-    
-    def detect(self, uid):
-        self.ego = self.gcache.egoNetwork(uid)
+class CommDetection(object):
+    def __init__(self, datalayer):
+        self.datalayer = datalayer 
+        self.udao = datalayer.getCachedCrawlUserDao()
+        self.tdao = datalayer.getCachedCrawlTweetDao()
         
-        comm = Community(self.ego, 0.01, 10, 2)
+    def detect(self, uid, cnum):
+        gcache = self.datalayer.getGraphCache()
+        self.ego = gcache.egoNetwork(uid)
+        
+        comm = Community(self.ego, 0.01, cnum, 3)
         comm.initCommunity()
         comm.startCluster()
         
@@ -32,42 +34,49 @@ class CommDetection:
                 comms[v]=[]
             comms[v].append(k)
             
-        self.summarize(comms)
+        return self.summarize(comms)
+    
     #choose tags for each community
     def summarize(self, comms):
         self.globalstats={}
         self.groupstats={}
         self.stats={}
+        self.groupRepr={}
         print "begin to summarize"
         for k, v in comms.items():
             self.buildUserTagWordCloud(k,v)
         
+        groups={}
+        for group, uids in comms.items():
+            newGroup = self.groupRepr[group]
+            for uid in uids:
+                groups[uid] = newGroup
+                
+        groupTags={}
         for group, v in self.groupstats.items():
-            up = self.udao.getUserProfile(group)
+            up = self.udao.getUserProfile(self.groupRepr[group])
             if up:
                 group = up.name
             hist=[]
             for (k,v) in v.items():
-                #if self.globalstats[k] > 1:
                     hist.append((k, float(v)/self.globalstats[k]))
-                    #hist.append((k,v))
             hist = sorted(hist, lambda x,y: cmp(x[1], y[1]), reverse=True)
-            print "________________________________"
-            print group
-            i = 0
-            for (k,v) in hist:
-                print k, v
-                i+=1
-                if i > 20:
-                    break
-        print str(self.stats)
+            groupTags[self.groupRepr[group]]=[tag[0] for tag in hist[0:20]]
+            
+        return (groups, groupTags)
     
     def buildUserTagWordCloud(self,k, v):
         wordHist={}
         self.groupstats[k] = wordHist
+        
+        repr=[None,-1]
+        
         for uid in v:
             tags = udao.getUserTags(uid)
             weight = self.ego.neighWeight(uid)
+            if weight > repr[1]:
+                repr[0]=uid
+                repr[1]=weight
             if not tags:
                 continue
             uwordSet=set()
@@ -81,7 +90,8 @@ class CommDetection:
                     wordHist[word] = wordHist.get(word, 1) + weight
                 uwordSet.add(word)
         self.groupstats[k] = wordHist
-       
+        self.groupRepr[k]=repr[0]
+        
     def buildProfileWordCloud(self,k, v):
         wordHist={}
         self.groupstats[k] = wordHist
@@ -130,16 +140,16 @@ if __name__ == "__main__":
     
 
     c = WeiboCrawler(TokenManager())
-    udao = FileBasedUserDao("../",c)
+    udao = FileBasedUserDao("../../")
     udao.open()
-    tdao = FileBasedTweetDao("../tweets.data",c)
+    tdao = FileBasedTweetDao("../../tweets.data")
     tdao.open()
     
-    gcache = GraphCache(snRedis, profileRedis)
+    
     com = CommDetection(udao, tdao, gcache)
     try:
-        #com.detect("1707446764")
-        com.detect("1650507560")
+        com.detect("1707446764")
+        #com.detect("1650507560")
     finally:
         udao.close()
         tdao.close()

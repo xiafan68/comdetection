@@ -4,11 +4,12 @@
 #
 #
 from cluster.graph import Graph
-from xredis import RedisCluster
+from xredis.RedisCluster import RedisCluster
 from lru import LRUCacheDict
 import logging
 from util.strutil import *
-
+from dao.datalayer import DataLayer
+from dbinfo import *
 logger = logging.getLogger(__name__)
 
 class GraphCache:
@@ -81,7 +82,7 @@ class GraphCache:
         for node in nodes:
             idx = self.profileCluster.getRedisIdx(node)
             if not idx in pipelines:
-                redis = self.profileCluster.getRedis(node, 1)
+                redis = self.profileCluster.getRedis(node, PROFILE_DB)
                 pipelines[idx]=redis.pipeline(transaction=False)
                 pipelines[idx].hmget(node,'id','name')
                 
@@ -98,7 +99,7 @@ class GraphCache:
         logger.info("searching for nodes:%s"%str(nodes))
         for node in nodes:
             idx = self.profileCluster.getRedisIdx(node)
-            redis = self.profileCluster.getRedis(node, 1)
+            redis = self.profileCluster.getRedis(node,PROFILE_DB)
             name=redis.hget(node,'name')
             profiles[node]=name
             if name:
@@ -110,7 +111,7 @@ class GraphCache:
         profiles={}
         for node in graph.nodes():
             idx = self.profileCluster.getRedisIdx(node)
-            redis = self.profileCluster.getRedis(node, 1)
+            redis = self.profileCluster.getRedis(node, PROFILE_DB)
             rec = redis.hgetall(node)
             profiles[node]=rec
         return profiles
@@ -120,7 +121,7 @@ class GraphCache:
         for node in graph.nodes():
             idx = self.profileCluster.getRedisIdx(node)
             if not idx in pipelines:
-                redis = self.profileCluster.getRedis(node, 1)
+                redis = self.profileCluster.getRedis(node, PROFILE_DB)
                 pipelines[idx]=redis.pipeline(transaction=False)
             pipelines[idx].hgetall(node)
         profiles={}
@@ -151,7 +152,7 @@ class GraphCache:
     read neighbours of nodeID from redis cluster
     """
     def fetchNode(self, nodeID):
-        redis= self.dataCluster.getRedis(nodeID,0)
+        redis= self.dataCluster.getRedis(nodeID, SN_DB)
         neighbours = redis.smembers(nodeID)
         #self.dataCluster.returnRedis(nodeID, redis)
         if len(neighbours) > 0:
