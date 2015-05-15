@@ -199,46 +199,49 @@ class MysqlUserDao(object):
 """
 用于访问tweets数据的类,这个类只能从文件中将数据全部导入内存
 """
-class RedisUserDao(UserDataCrawler):
-    def __init__(self, redisCluster, weibocrawler):
+class RedisUserDao(object):
+    def __init__(self, redisCluster):
         self.redisCluster = redisCluster
-        self.weibocrawler = weibocrawler
     
     def open(self):
-        self.fd = open(self.tfile)
-        for line in self.fd.readlines():
-            if not line:
-                break
-            
-            t = Tweet()
-            t.parse(line)
-            self.tmap[t.mid] = t
+        pass
     
-    def getUser(self, uid):
+    def getUserProfile(self, uid):
         redis = self.redisCluster.getRedis(uid)
-        u = UserProfile()
         fields = redis.hgetall(uid)
         if fields:
+            u = UserProfile()
             for field in u.schema:
                 u.setattr(field, fields[field])
+            return u
         else:
-            up = self.getUserProfile_(uid)
-            self.writeUser(up)
-        return u
+            return None
     
     def getUsers(self, uids):
         ret = []
         for uid in uids:
-           ret.append(self.getUser(uid))
+            ret.append(self.getUser(uid))
         return ret
     
-    def writeUser(self, user):
+    def updateUserProfile(self, user):
         redis = self.redisCluster.getRedis(user.id)
         pipe = redis.pipeline(transaction=False)
         for field in user.schema:
             pipe.hset(user.id, field, getattr(user, field))
         pipe.execute()
         
+    def getUserTags(self):
+        pass
+    
+    def updateUserTags(self):
+        pass
+    
+    def getUserMids(self):
+        pass
+    
+    def updateUserMids(self):
+        pass
+    
     def close(self):
         pass
     

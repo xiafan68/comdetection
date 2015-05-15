@@ -12,13 +12,19 @@ class UserDataCrawler(object):
         status = self.weiboCrawler.statuses.show.get(id=mid)
         t = Tweet()
         if status:
+            rt=None
             for k,v in status.items():
                 if k == "user":
                     t.setattr('uid', v['id'])
                 elif k == "retweeted_status":
                     t.setattr("rtmid", v['mid'])
+                    rtuser = v['user']
+                    if rtuser:
+                        rt = "@%s:%s"%(v["text"], rtuser['name'])
                 else:
                     t.setattr(k,v)
+            if rt:
+                t.setattr("text", "%s//%s"%(t.text, rt))
             return t
         else:
             return None
