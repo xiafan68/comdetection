@@ -28,11 +28,7 @@ manage token refresh
 class TokenManager(object):
     
     def nextToken(self):
-        return Token(consumer_key="", consumer_secret='', 
-                     token="2.",
-                     secret='',
-                     redirectUrl='',
-                     count=1, timestamp=1)
+        pass
     
 """
 """

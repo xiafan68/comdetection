@@ -2,6 +2,8 @@
 
 import random
 from graph import Graph
+import logging
+
 #
 # Cluster的modularity的值:
 # A(ij)(内部边的权重之和)
@@ -50,7 +52,7 @@ class Community():
 
     def printCommunity(self):
         for i in self.g.nodes():
-            print "node %s: cluster %s"%(i, self.n2c[i])
+            logging.info( "node %s: cluster %s"%(i, self.n2c[i]))
 
     #dnodecomm是什么？
     def remove(self, node, comm, dnodecomm):
@@ -166,16 +168,16 @@ class Community():
             if (nb_moves > 0):
                 improvement = True
             
-            print "nb_moves:%d"%(nb_moves)
-            print "pre:%f, cur:%f,modularity gap:%f"%(cur_mod, new_mod,new_mod - cur_mod)
+            logging.info( "nb_moves:%d"%(nb_moves))
+            logging.info( "pre:%f, cur:%f,modularity gap:%f"%(cur_mod, new_mod,new_mod - cur_mod))
             if (improvement and (new_mod - cur_mod) > self.min_modularity):
                 cont = True
             else:
                 cont= False
-        print "#### new graph size:%d"%(self.g.nodeSize())
-        print "#### cluster size:%d"%(self.clusterSize())
-        print  "#### actual cluster size:%d"%(self.actualClusterSize())
-        print "-------------------------------------"
+        logging.info( "#### new graph size:%d"%(self.g.nodeSize()))
+        logging.info( "#### cluster size:%d"%(self.clusterSize()))
+        logging.info(  "#### actual cluster size:%d"%(self.actualClusterSize()))
+        logging.info( "-------------------------------------")
         return improvement
 
 #生成由当前graph的cluster构成的图
@@ -268,7 +270,7 @@ class Community():
         i = 1
         #curTask.printCommunity()
         while curTask.clusterSize() > self.minC and i < self.maxLevel:    
-            print "start level:%d"%(i)
+            logging.info( "start level:%d"%(i))
             curTask = curTask.genNextCommTask()
             curTask.oneLevel()
             curTask.postProcess()

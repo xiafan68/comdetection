@@ -35,12 +35,14 @@ class DBCommInfoDao(object):
     
     def updateUserNeighComms(self, uid, groups):
         cursor = self.conn.cursor()
-        sql = "insert into neighgroups(uid, friid, group) " 
-        "values(%s,%s,%s) on duplicate key update "
-        "friid=values(friid), group=values(group) where uid=values(uid);"
-        args = [(uid, group[0], group[1]) for group in groups]
         try:
-            cursor.executemany(sql, args)
+            sql = "delete from neighgroups where uid='%s';"%(uid)
+            cursor.execute(sql)
+            sql = "insert into neighgroups(uid, friid, groupid) values('%s','%s','%s');"
+            #args = [(uid, friid, group) for friid, group in groups.items()]
+            #cursor.executemany(sql, args)
+            for friid, group in groups.items():
+               cursor.execute(sql%(uid, friid, group))
         except Exception as ex:
             logging.error(str(ex))
         finally:
@@ -50,7 +52,7 @@ class DBCommInfoDao(object):
     def getCommTags(self, uid):
         cursor = self.conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
         try:
-            cursor.execute("select uid, group, tags from grouptags where uid='%s';" % (uid))
+            cursor.execute("select uid, groupid, tags from grouptags where uid='%s';" % (uid))
             res = cursor.fetchall()
             ret = {}
             for rec in res:
@@ -61,12 +63,15 @@ class DBCommInfoDao(object):
     
     def updateCommTags(self, uid, groupTags):
         cursor = self.conn.cursor()
-        sql = "insert into grouptags(uid, group, tags) " 
-        "values(%s,%s,%s) on duplicate key update "
-        "friid=values(friid), group=values(group) where uid=values(uid);"
-        args = [(uid, groupTag[0], ",".join(groupTag[1])) for groupTag in groupTags]
+       
         try:
-            cursor.executemany(sql, args)
+            sql = "delete from grouptags where uid='%s';"%(uid)
+            cursor.execute(sql)
+            sql = "insert into grouptags(uid, groupid, tags) values('%s','%s','%s');"
+            #args = [(uid, groupTag[0], ",".join(groupTag[1])) for groupTag in groupTags]
+            #cursor.executemany(sql, args)
+            for friid, tags in groupTags.items():
+                cursor.execute(sql%(uid, friid, ",".join(tags)))
         except Exception as ex:
             logging.error(str(ex))
         finally:

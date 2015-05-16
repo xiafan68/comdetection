@@ -59,7 +59,7 @@ class WeiboObj(object):
 
 class Tweet(WeiboObj):
     def __init__(self):
-        fields = ["mid", 'rtmid', "text", "source", "retweeted_status", "uid", "reposts_count", "comments_count", "created_at"]
+        fields = ["mid", 'rtmid', "text", "source", "uid", "reposts_count", "comments_count", "created_at"]
         schema = {}
         id = 0
         for field in fields:
@@ -71,11 +71,11 @@ class UserProfile(WeiboObj):
     # for compatibility with previous format
     mapping = {"location":"loc", "description":"descr", "followers_count":"folCount", 
                "friends_count":"friCount", "statuses_count":"statuscount", 
-               "favourites_count":"favorcount", "verified_type":"vtype", "created_at":"createat"}
+               "favourites_count":"favorcount", "verified_type":"vtype", "created_at":"createat","profile_image_url":'pimg_url'}
     def __init__(self):
         fields = ["uid", "name", "province", "city", "location", "descr", 
-                  "url", "profile_image_url", "gender", "folCount", "friCount",
-                "statuscount", "favorcount", "createat", "verified", 
+                  "url", "pimg_url", "gender", "folCount", "friCount",
+                "statusCount", "favorCount", "createat", "verified", 
                 "vtype", "verified_reason", "lastcrawltime", "crawlstate"]
         schema = {}
         idx = 0

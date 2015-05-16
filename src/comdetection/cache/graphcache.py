@@ -8,7 +8,6 @@ from xredis.RedisCluster import RedisCluster
 from lru import LRUCacheDict
 import logging
 from util.strutil import *
-from dao.datalayer import DataLayer
 from dbinfo import *
 logger = logging.getLogger(__name__)
 

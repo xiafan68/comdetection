@@ -28,7 +28,7 @@ class DaoCallWrapper(object):
                     attr = getattr(dao, method)
                     attr(ret, arg)
                 except Exception,ex:
-                    
+                    print str(ex)
                     pass
         return ret    
 

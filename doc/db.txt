@@ -1,0 +1,58 @@
+CREATE SCHEMA `community` DEFAULT CHARACTER SET utf8 ;
+
+CREATE  TABLE `community`.`tweet` (
+  `mid` VARCHAR(20) CHARACTER SET 'utf8' NOT NULL ,
+  `rtmid` VARCHAR(20) NULL DEFAULT '-1' ,
+  `text` VARCHAR(1000) NULL ,
+  `source` VARCHAR(100) NULL ,
+  `uid` VARCHAR(20) NULL ,
+  `reposts_count` INT NULL ,
+  `comments_count` INT NULL ,
+  `created_at` DATE NULL ,
+  PRIMARY KEY (`mid`) );
+
+  CREATE  TABLE `community`.`userprofile` (
+  `uid` VARCHAR(20) NOT NULL ,
+  `name` VARCHAR(45) NULL ,
+  `province` VARCHAR(45) NULL DEFAULT '',
+  `city` VARCHAR(45) NULL DEFAULT '',
+  `location` VARCHAR(45) NULL DEFAULT '',
+  `descr` VARCHAR(45) NULL DEFAULT '',
+  `url` VARCHAR(45) NULL DEFAULT '',
+  `pimg_url` VARCHAR(45) NULL DEFAULT '',
+  `gender` CHAR(4) NULL DEFAULT '',
+  `fol_count` INT NULL ,
+  `fri_count` INT NULL ,
+  `status_count` INT NULL ,
+  `favor_count` INT NULL ,
+  `createat` BIGINT NULL ,
+  `verified` TINYINT NULL ,
+  `vtype` INT NULL ,
+  `verified_reason` VARCHAR(100) NULL DEFAULT '',
+  `last_crawl_time` BIGINT NULL DEFAULT -1,
+  `crawl_state` TINYINT NULL DEFAULT 2,
+  PRIMARY KEY (`uid`) );
+  
+  CREATE  TABLE `community`.`usermids` (
+  `uid` VARCHAR(20) NOT NULL ,
+  `mids` TEXT NULL ,
+  PRIMARY KEY (`uid`) );
+  
+  CREATE  TABLE `community`.`usertags` (
+  `uid` VARCHAR(20) NOT NULL ,
+  `tags` TEXT NULL ,
+  PRIMARY KEY (`uid`) );
+  
+  CREATE  TABLE `community`.`clusterstate` (
+  `uid` VARCHAR(20) NOT NULL ,
+  `state` TINYINT NULL ,
+  `time` BIGINT NULL ,
+  PRIMARY KEY (`uid`) );
+  
+  
+  CREATE  TABLE `community`.`neighgroups` (
+  `uid` VARCHAR(20) NOT NULL ,
+  `friid` VARCHAR(20) NOT NULL ,
+  `group` VARCHAR(20) NOT NULL ,
+  INDEX `uid` (`uid` ASC) );
+  

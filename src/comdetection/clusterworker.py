@@ -1,3 +1,5 @@
+#coding:utf8
+import random
 from ConfigParser import ConfigParser
 from network import ClusterClient
 from network.ttypes import  *
@@ -15,10 +17,13 @@ from dao.tweetdao import *
 from dao.datalayer import DataLayer
 from cluster.comdetection import *
 from dbinfo import *
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(name)s:%(levelname)s: %(message)s"
-)
+from dao.clusterstate import ClusterState
+
+cslogger=logging.getLogger("cluster server")
+cslogger.setLevel(logging.INFO)
+hdr = logging.StreamHandler()
+hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s %(funcname)s: %(message)s"))
+logger.addHandler(hdr)
 
 class ReportThread(Thread):
     def __init__(self, slaveWorker):
@@ -27,7 +32,7 @@ class ReportThread(Thread):
         
     def run(self):
         while self.slaveWorker.working:
-            logging.info("start report service")
+            cslogger.info("start report service")
             processor = ClusterClient.Processor(self)
             transport = TSocket.TServerSocket(port=9090)
             tfactory = TTransport.TBufferedTransportFactory()
@@ -38,6 +43,9 @@ class ReportThread(Thread):
     def stopReport(self):
         self.reportServer.stop()
 
+"""
+当前版本的queue实现是基于redis的，总是从redis读取任务
+"""
 class ClusterTaskQueue(object):
     def __init__(self, rCluster):
         self.redis = rCluster.getRedis("1", CLUSTER_JOB_DB)
@@ -59,40 +67,56 @@ class ClusterThread(Thread):
     def __init__(self, worker):
         super(ClusterThread, self).__init__()
         self.worker = worker
-        
+        self.clustergap = worker.config.getint('crawl','clustergap')
+        self.maxclustertime = worker.config.getint('crawl','maxclustertime')
     def run(self):
         detect = CommDetection(self.worker.dataLayer)
         dao = self.worker.dataLayer.getDBCommInfoDao()
         self.stateDao = self.worker.dataLayer.getClusterStateDao()
         worker = self.worker
         while worker.working:
-            for task in worker.taskGen.nextTask():
-                logging.info("processing task %s"%(str(task)))
-                self.setJobState(task[1], 0, long(time.time()))
-    
-                ret = detect.detect(task[1], task[2])
-                try:
-                    dao.updateUserNeighComms(task[1],ret[0])
-                    dao.updateGroupTags(task[1], ret[1])
-                    self.setJobState(task[1], 1, long(time.time()))
-                except:
+            try:
+                for task in worker.taskGen.nextTask():
+                    cslogger.info("processing task %s"%(str(task)))
+                    state = self.stateDao.getClusterState()
+                    now = long(time.time())
+                    if state and ((state[0] == 0 and now - state[1] < self.maxclustertime) or 
+                         (state[0]==1 and now - state[1] < self.clustergap)):
+                        continue 
+                     
+                    curState = ClusterState(task[1], worker.id)
+                    #a previous job may fail
+                    if not self.statedao.setupLease(curState, state):
+                        continue
+                    ret = detect.detect(task[1], task[2])
                     try:
-                        self.setJobState(task[1], 2, long(time.time()))
-                        dao.close()
-                        dao = self.worker.dataLayer.getDBCommInfoDao()
-                    except:
-                        pass
+                        if self.stateDao.extendLease(curState):
+                            dao.updateUserNeighComms(task[1],ret[0])
+                            dao.updateCommTags(task[1], ret[1])
+                            
+                    except Exception as ex:
+                        print str(ex)
+                        try:
+                            #self.setJobState(task[1], 2, long(time.time()))
+                            dao.close()
+                            dao = self.worker.dataLayer.getDBCommInfoDao()
+                        except:
+                            pass
+            except Exception as ex:
+                cslogger.error(ex)
         dao.close()
                         
     def setJobState(self, uid, state, time):
         try:
-            if self.stateDao:
+            if not self.stateDao:
                 self.stateDao = self.worker.dataLayer.getClusterStateDao()
-            self.stateDao.setClusterState(uid, 2, long(time.time()))
-        except:
+            self.stateDao.setClusterState(uid, state, time)
+        except Exception as ex:
+            print str(ex)
             try:
                 if self.stateDao:
                     self.stateDao.close()
+                    self.stateDao= None
             except:
                 self.stateDao = None
 
@@ -100,7 +124,11 @@ class ClusterWorker:
     def __init__(self, config):
         self.config = config
         self.workStatus = WorkStatus()
-
+        try:
+            self.id = config.getint('workder','id')
+        except:
+            self.id = random.randint()
+        
     def start(self):
         self.working = True
         self.dataLayer= DataLayer(self.config)
@@ -108,10 +136,10 @@ class ClusterWorker:
         # start status report service
         self.reportThread = ReportThread(self)
         self.reportThread.start()
-        
-        logging.info("start worker thread")
+                
         self.taskGen = ClusterTaskQueue(self.dataLayer.getJobRedis())        
         tnum = self.config.getint('cluster', 'threadnum')
+        cslogger.info("start %d worker threads"%(tnum))
         self.threads=[]
         for i in range(tnum):
             workThread = ClusterThread(self)
@@ -126,7 +154,7 @@ class ClusterWorker:
                 self.threads.pop(0)
             except:
                 pass
-        logging.info("cluster worker shuts down")
+        cslogger.info("cluster worker shuts down")
    
     """
     the following function are status report function

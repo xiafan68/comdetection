@@ -8,6 +8,7 @@ from cache.graphcache import *
 from dao.comminfodao import DBCommInfoDao
 from dao.clusterstate import *
 from dbinfo import *
+from cache.graphcache import GraphCache
 
 class DataLayer(object):
     def __init__(self, config):
@@ -42,8 +43,10 @@ class DataLayer(object):
     
     def getDBUserDao(self):
         conn = MySQLdb.connect(host=self.config.get('mysql',"host"),
+                               port=self.config.getint('mysql', 'port'),
                                user=self.config.get('mysql',"user"),
                                passwd=self.config.get('mysql',"passwd"),
+                               db=self.config.get('mysql','db'),
                                charset="utf8")
         dao = DBUserDao(conn)
         return dao
@@ -53,23 +56,27 @@ class DataLayer(object):
     
     def getDBTweetDao(self):
         conn = MySQLdb.connect(host=self.config.get('mysql',"host"),
+                               port=self.config.getint('mysql', 'port'),
                                user=self.config.get('mysql',"user"),
                                passwd=self.config.get('mysql',"passwd"),
+                               db=self.config.get('mysql','db'),
                                charset="utf8")
         dao = DBTweetDao(conn)
         return dao
     
     def getDBCommInfoDao(self):
         conn = MySQLdb.connect(host=self.config.get('mysql',"host"),
+                               port=self.config.getint('mysql', 'port'),
                                user=self.config.get('mysql',"user"),
                                passwd=self.config.get('mysql',"passwd"),
-                               charset="utf8") 
+                               db=self.config.get('mysql','db'),
+                               charset="utf8")
         dao = DBCommInfoDao(conn)
         return dao
     
     def getCachedCrawlUserDao(self):
-        ret= ChainedDao([RedisUserDao(self.profileCluster), 
-                         UserDataCrawlerDao(WeiboCrawler(TokenManager()))])
+        ret= ChainedDao([RedisUserDao(self.profileCluster), self.getDBUserDao(),
+                         UserDataCrawlerDao(WeiboCrawler(TokenManager()))])#
         return ret
     
     def getCachedCrawlTweetDao(self):
@@ -78,8 +85,10 @@ class DataLayer(object):
     
     def getClusterStateDao(self):
         conn = MySQLdb.connect(host=self.config.get('mysql',"host"),
+                               port=self.config.getint('mysql', 'port'),
                                user=self.config.get('mysql',"user"),
                                passwd=self.config.get('mysql',"passwd"),
+                               db=self.config.get('mysql','db'),
                                charset="utf8")
         dao = ClusterStateDao(conn)
         return dao

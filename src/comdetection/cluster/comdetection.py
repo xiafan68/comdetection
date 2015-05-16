@@ -54,9 +54,9 @@ class CommDetection(object):
                 
         groupTags={}
         for group, v in self.groupstats.items():
-            up = self.udao.getUserProfile(self.groupRepr[group])
-            if up:
-                group = up.name
+            #up = self.udao.getUserProfile(self.groupRepr[group])
+            #if up:
+            #    group = up.name
             hist=[]
             for (k,v) in v.items():
                     hist.append((k, float(v)/self.globalstats[k]))
@@ -72,7 +72,7 @@ class CommDetection(object):
         repr=[None,-1]
         
         for uid in v:
-            tags = udao.getUserTags(uid)
+            tags = self.udao.getUserTags(uid)
             weight = self.ego.neighWeight(uid)
             if weight > repr[1]:
                 repr[0]=uid

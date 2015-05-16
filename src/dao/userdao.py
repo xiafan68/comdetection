@@ -157,38 +157,42 @@ class DBUserDao(object):
         return ret
     
     def updateUserProfile(self, user, uid):
+        user.lastcrawltime=long(time.time())
+        user.crawlstate=2
         cursor = self.conn.cursor()
-        cursor.execute("insert into userprofile(%s) values(%s) on duplicate key update %s where uid=%s;" % (user.getSQLColums(), user.getSQLValues(), user.getUpdate("uid"), uid))
+        cursor.execute("insert into userprofile(%s) values(%s) on duplicate key update %s;" % (user.getSQLColums(), user.getSQLValues(), user.getUpdate("uid")))
         cursor.close()
-    
+        self.conn.commit()
+        
     def getUserMids(self, uid):
         return self.uMids.get(uid, [])
     
     def updateUserMids(self, mids, uid):
         cursor = self.conn.cursor()
         midstr = ",".join(mids)
-        cursor.execute("insert into usermids(uid, tags) values(%s, '%s') on duplicate key update tags='%s' where uid=%s;" % (uid, midstr, midstr,uid))
+        cursor.execute("insert into usermids(uid, mids) values('%s', '%s') on duplicate key update tags='%s';" % (uid, midstr, midstr))
         cursor.close()
-
+        self.conn.commit()
+        
     def getUserTags(self, uid):
         cursor = self.conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-        cursor.execute("select * from usertags where uid='%s';" % (uid))
+        cursor.execute("select tags from usertags where uid='%s';" % (uid))
         res = cursor.fetchall()
         
         ret = []
         for rec in res:
-            for (k, v) in rec.items():
-                ret = v.split(",")
+            ret = rec['tags'].split(",")
             break
         cursor.close()
         return ret
     
     def updateUserTags(self, utags, uid):
-        tstr = "\t".join(utags)
-        rec = "%s\t%s\n" % (uid, tstr)
-        self.tagfd.write(rec.encode('utf8'))
-        self.tagfd.flush()
-        self.uTags[uid] = utags
+        cursor = self.conn.cursor()
+        tagstr = ",".join(utags)
+        sql = "insert into usertags(uid, tags) values('%s', '%s') on duplicate key update tags='%s';" % (uid, tagstr, tagstr)
+        cursor.execute(sql)
+        cursor.close()
+        self.conn.commit()
                 
     
     
@@ -210,7 +214,8 @@ class RedisUserDao(object):
         if fields:
             u = UserProfile()
             for field in u.schema:
-                u.setattr(field, fields[field])
+                if field in fields:
+                    u.setattr(field, fields[field])
             return u
         else:
             return None
@@ -228,10 +233,10 @@ class RedisUserDao(object):
             pipe.hset(user.id, field, getattr(user, field))
         pipe.execute()
         
-    def getUserTags(self):
+    def getUserTags(self, uid):
         pass
     
-    def updateUserTags(self):
+    def updateUserTags(self, utags, uid):
         pass
     
     def getUserMids(self):
