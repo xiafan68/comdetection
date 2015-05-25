@@ -5,6 +5,9 @@ import numpy as np
 from scipy.sparse import coo_matrix
 import jieba
 
+"""
+a exploratory class to find out the performance of word tags
+"""
 class GenTopic(object):
     def __init__(self):
         self.wordMap={}

@@ -9,7 +9,7 @@ store community infos
 import MySQLdb
 import logging
 from xredis.RedisCluster import RedisCluster
-from dbinfo import *
+from redisinfo import *
 
 """
 基于db的dao

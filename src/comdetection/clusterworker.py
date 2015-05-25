@@ -11,19 +11,22 @@ from threading import Thread
 
 from cluster.community import *
 from cache.graphcache import GraphCache
-from task.taskgen import TaskGen 
+#from task.taskgen import TaskGen 
 import os
 from dao.tweetdao import *
 from dao.datalayer import DataLayer
-from cluster.comdetection import *
-from dbinfo import *
 from dao.clusterstate import ClusterState
+from cluster.summarization import ComSummarize
+from redisinfo import *
+import time
+import cPickle
+from task.taskqueue import *
 
 cslogger=logging.getLogger("cluster server")
 cslogger.setLevel(logging.INFO)
 hdr = logging.StreamHandler()
-hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s %(funcname)s: %(message)s"))
-logger.addHandler(hdr)
+hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s : %(message)s"))
+cslogger.addHandler(hdr)
 
 class ReportThread(Thread):
     def __init__(self, slaveWorker):
@@ -42,35 +45,19 @@ class ReportThread(Thread):
 
     def stopReport(self):
         self.reportServer.stop()
-
-"""
-当前版本的queue实现是基于redis的，总是从redis读取任务
-"""
-class ClusterTaskQueue(object):
-    def __init__(self, rCluster):
-        self.redis = rCluster.getRedis("1", CLUSTER_JOB_DB)
     
-    def nextTask(self):
-        tasktypes=['cluster']
-        while True:
-            hit = False
-            for tasktype in tasktypes:
-                ret = self.redis.lpop(tasktype)
-                if ret:
-                    ret = [int(field) for field in ret.split(',')]
-                    hit = True
-                    yield (tasktype, ret[0], ret[1])
-            if not hit:
-                sleep(0.1)
-
+"""
+this is the class that accepts cluster tasks and executes them.
+"""
 class ClusterThread(Thread):
     def __init__(self, worker):
         super(ClusterThread, self).__init__()
         self.worker = worker
         self.clustergap = worker.config.getint('crawl','clustergap')
         self.maxclustertime = worker.config.getint('crawl','maxclustertime')
+        self.sum = ComSummarize(self.worker.dataLayer)
+
     def run(self):
-        detect = CommDetection(self.worker.dataLayer)
         dao = self.worker.dataLayer.getDBCommInfoDao()
         self.stateDao = self.worker.dataLayer.getClusterStateDao()
         worker = self.worker
@@ -78,26 +65,30 @@ class ClusterThread(Thread):
             try:
                 for task in worker.taskGen.nextTask():
                     cslogger.info("processing task %s"%(str(task)))
-                    state = self.stateDao.getClusterState()
-                    now = long(time.time())
-                    if state and ((state[0] == 0 and now - state[1] < self.maxclustertime) or 
-                         (state[0]==1 and now - state[1] < self.clustergap)):
-                        continue 
+                    state = self.stateDao.getClusterState(task[1].uid)
+
+                    if not task[1].force:
+                        now = long(time.time())
+                        if state and ((state.state == 0 and now - state.time < self.maxclustertime) or 
+                                      (state.state==1 and now - state.time < self.clustergap)):
+                            continue 
                      
-                    curState = ClusterState(task[1], worker.id)
+                    curState = ClusterState(task[1].uid, worker.id)
                     #a previous job may fail
-                    if not self.statedao.setupLease(curState, state):
+                    if not self.stateDao.setupLease(curState, state):
                         continue
-                    ret = detect.detect(task[1], task[2])
+                                        
                     try:
+                        cret = self.execGraphCluster(task[1])
                         if self.stateDao.extendLease(curState):
-                            dao.updateUserNeighComms(task[1],ret[0])
-                            dao.updateCommTags(task[1], ret[1])
-                            
+                            sumIns = ComSummarize(worker.dataLayer)
+                            ret = sumIns.summarize(cret[0],cret[1])
+                            if self.stateDao.extendLease(curState):
+                                dao.updateUserNeighComms(task[1].uid, ret[0])
+                                dao.updateCommTags(task[1].uid, ret[1])
                     except Exception as ex:
                         print str(ex)
                         try:
-                            #self.setJobState(task[1], 2, long(time.time()))
                             dao.close()
                             dao = self.worker.dataLayer.getDBCommInfoDao()
                         except:
@@ -105,7 +96,17 @@ class ClusterThread(Thread):
             except Exception as ex:
                 cslogger.error(ex)
         dao.close()
-                        
+    
+    def execGraphCluster(self,task):
+        gcache = self.worker.dataLayer.getGraphCache()
+        ego = gcache.egoNetwork(task.uid)
+        comm = Community(ego, 0.01, task.cnum, 3)
+        comm.initCommunity()
+        comm.startCluster()
+        return (ego, comm.n2c)
+    
+    def summarize(self, comm):
+        return sum.summarize(comm[0],comm[1])
     def setJobState(self, uid, state, time):
         try:
             if not self.stateDao:
@@ -127,7 +128,7 @@ class ClusterWorker:
         try:
             self.id = config.getint('workder','id')
         except:
-            self.id = random.randint()
+            self.id = random.randint(0,10000000)
         
     def start(self):
         self.working = True

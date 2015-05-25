@@ -6,7 +6,7 @@
 from weiboobj import *
 from weibo.weibocrawler import *
 import os
-from dbinfo import *
+from redisinfo import *
 
 class UserDataCrawlerDao(object):
     def __init__(self, weiboCrawler):

@@ -8,7 +8,7 @@ from xredis.RedisCluster import RedisCluster
 from lru import LRUCacheDict
 import logging
 from util.strutil import *
-from dbinfo import *
+from redisinfo import *
 logger = logging.getLogger(__name__)
 
 class GraphCache:

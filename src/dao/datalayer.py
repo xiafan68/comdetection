@@ -7,14 +7,14 @@ import logging
 from cache.graphcache import *
 from dao.comminfodao import DBCommInfoDao
 from dao.clusterstate import *
-from dbinfo import *
+from redisinfo import *
 from cache.graphcache import GraphCache
 
 class DataLayer(object):
     def __init__(self, config):
         logging.info("initialize data access layer")
         self.config = config
-        snservers=config.get('sncache','hosts').split(",")
+        snservers=[server.strip() for server in config.get('sncache','hosts').split(",")]
         snports=[int(port) for port in config.get('sncache', 'ports').split(',')]
         self.snCluster=RedisCluster(zip(snservers, snports))
         self.snCluster.start()
@@ -24,7 +24,7 @@ class DataLayer(object):
         self.profileCluster=RedisCluster(zip(uservers, uports))    
         self.profileCluster.start()
         
-        jobservers=config.get('jobqueue','hosts').split(",")
+        jobservers=[server.strip() for server in  config.get('jobqueue','hosts').split(",")]
         jobports=[int(port) for port in config.get('jobqueue', 'ports').split(',')]
         self.jobCluster=RedisCluster(zip(jobservers, jobports))
         self.jobCluster.start()

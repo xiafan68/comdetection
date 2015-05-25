@@ -1,7 +1,7 @@
 # coding:UTF8
 from weiboobj import Tweet
 import logging
-from dbinfo import TWEET_DB
+from redisinfo import TWEET_DB
 
 logger = logging.getLogger("tweetdao")
 class TweetCrawlerDao(object):

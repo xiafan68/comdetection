@@ -16,18 +16,18 @@ class ClusterStateDao(object):
         pass
     
     def setupLease(self,state, preState):
-        state.time=time.time()
+        state.time=long(time.time())
         cursor = self.conn.cursor()
         count = 0
         
         try:
             if not preState:
-                count = cursor.execute("insert into clusterstate(uid, state, time, workerid) values(%s, %d, %d);" % 
+                count = cursor.execute("insert into clusterstate(uid, state, time, workerid) values(%s, %d, %d, %d);" % 
                                (state.uid, state.state, state.time, state.workerid))
             else:
-                count = cursor.execute("update state = 0, time=%s, workerid=%s "\
-                                       "where uid = %s and time = %s and workid=%s" % 
-                                        (state.time, state.workerid,state.uid, preState.time, preState.workid))
+                count = cursor.execute("update clusterstate set state = 0, time=%s, workerid=%s "\
+                                       "where uid = %s and time = %s and workerid=%s" % 
+                                        (state.time, state.workerid,state.uid, preState.time, preState.workerid))
         except Exception as ex:
             print str(ex)
             count = 0
@@ -39,12 +39,12 @@ class ClusterStateDao(object):
                 
 
     def extendLease(self, state):
-        state.time=time.time()
+        state.time=long(time.time())
         cursor = self.conn.cursor()
         count = 0
         try:
-            count = cursor.execute("update state = %s, time=%s where uid = %s and workid=%s" % 
-                                        (state.state, state.time, state.uid, state.workerid,))
+            count = cursor.execute("update clusterstate set state = %s, time=%s where uid = %s and workerid=%s" % 
+                                        (state.state, state.time, state.uid, state.workerid))
         except Exception as ex:
             print str(ex)
         finally:
@@ -70,14 +70,15 @@ class ClusterStateDao(object):
         
     def getClusterState(self, uid):
         cursor = self.conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
+        ret = None
         try:
             cursor.execute("select * from clusterstate where uid='%s';" % (uid))
             rec = cursor.fetchone()
             
-            ret = ClusterState()
             if rec:
-                ret=(rec['state'], rec['time'])
-                break
+                ret = ClusterState(rec['uid'], rec['workerid'])
+                ret.time = rec['time']
+                ret.state = rec['state']
         except Exception as ex:
             print str(ex)
         

@@ -14,37 +14,25 @@ logging.basicConfig(
     format="[%(asctime)s] %(name)s:%(levelname)s: %(message)s"
 )
 
-class CommDetection(object):
+class ComSummarize(object):
     def __init__(self, datalayer):
-        self.datalayer = datalayer 
         self.udao = datalayer.getCachedCrawlUserDao()
-        self.tdao = datalayer.getCachedCrawlTweetDao()
-        
-    def detect(self, uid, cnum):
-        gcache = self.datalayer.getGraphCache()
-        self.ego = gcache.egoNetwork(uid)
-        
-        comm = Community(self.ego, 0.01, cnum, 3)
-        comm.initCommunity()
-        comm.startCluster()
-        
+      
+    #choose tags for each community
+    def summarize(self, ego, n2c):
         comms = {}
-        for k,v in comm.n2c.items():
+        for k,v in n2c.items():
             if v not in comms:
                 comms[v]=[]
             comms[v].append(k)
             
-        return self.summarize(comms)
-    
-    #choose tags for each community
-    def summarize(self, comms):
         self.globalstats={}
         self.groupstats={}
         self.stats={}
         self.groupRepr={}
         print "begin to summarize"
         for k, v in comms.items():
-            self.buildUserTagWordCloud(k,v)
+            self.buildUserTagWordCloud(ego, k,v)
         
         groups={}
         for group, uids in comms.items():
@@ -65,18 +53,18 @@ class CommDetection(object):
             
         return (groups, groupTags)
     
-    def buildUserTagWordCloud(self,k, v):
+    def buildUserTagWordCloud(self, ego, k, v):
         wordHist={}
         self.groupstats[k] = wordHist
         
-        repr=[None,-1]
+        reprNode=[None,-1]
         
         for uid in v:
             tags = self.udao.getUserTags(uid)
-            weight = self.ego.neighWeight(uid)
-            if weight > repr[1]:
-                repr[0]=uid
-                repr[1]=weight
+            weight = ego.neighWeight(uid)
+            if weight > reprNode[1]:
+                reprNode[0]=uid
+                reprNode[1]=weight
             if not tags:
                 continue
             uwordSet=set()
@@ -90,7 +78,7 @@ class CommDetection(object):
                     wordHist[word] = wordHist.get(word, 1) + weight
                 uwordSet.add(word)
         self.groupstats[k] = wordHist
-        self.groupRepr[k]=repr[0]
+        self.groupRepr[k]=reprNode[0]
         
     def buildProfileWordCloud(self,k, v):
         wordHist={}
@@ -146,7 +134,7 @@ if __name__ == "__main__":
     tdao.open()
     
     
-    com = CommDetection(udao, tdao, gcache)
+    com = ComSummarize(udao, tdao, gcache)
     try:
         com.detect("1707446764")
         #com.detect("1650507560")
