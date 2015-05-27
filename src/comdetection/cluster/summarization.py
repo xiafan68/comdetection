@@ -117,29 +117,23 @@ class ComSummarize(object):
         self.groupstats[k] = wordHist              
     
 if __name__ == "__main__":
-    snRedis=RedisCluster([ ("10.11.1.51", 6379),
-            ("10.11.1.52", 6379), ("10.11.1.53", 6379), ("10.11.1.54", 6379), ("10.11.1.55", 6379),
-           ("10.11.1.56", 6379), ("10.11.1.57", 6379), ("10.11.1.58", 6379), ("10.11.1.61", 6379),
-            ("10.11.1.62", 6379), ("10.11.1.63", 6379)], 0)
-    snRedis.start()
+    from dao.datalayer import DataLayer
+    from ConfigParser import ConfigParser
+    config = ConfigParser()
+    cpath = os.path.join(os.getcwd(), "../../../conf/dworker.conf")
+    print "load config file:", cpath
+    config.read(cpath)
+    
+    dataLayer = DataLayer(config)
+    com = ComSummarize(dataLayer)
+    gcache = dataLayer.getGraphCache()
+    ego = gcache.egoNetwork("1650507560")
+    comm = Community(ego, 0.01, 10, 3)
+    comm.initCommunity()
+    comm.startCluster()
+    comm.printCommunity()
+    #com.detect("1707446764")
+    #com.detect("1650507560")
 
-    profileRedis=RedisCluster([("10.11.1.64",6379)],1)
-    profileRedis.start()
-    
-
-    c = WeiboCrawler(TokenManager())
-    udao = FileBasedUserDao("../../")
-    udao.open()
-    tdao = FileBasedTweetDao("../../tweets.data")
-    tdao.open()
-    
-    
-    com = ComSummarize(udao, tdao, gcache)
-    try:
-        com.detect("1707446764")
-        #com.detect("1650507560")
-    finally:
-        udao.close()
-        tdao.close()
     
     #"1707446764"

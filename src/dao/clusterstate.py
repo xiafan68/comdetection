@@ -2,6 +2,9 @@
 import MySQLdb
 import time
 
+CLUSTER_RUNNING=0
+CLUSTER_SUCC=1
+CLUSTER_FAIL=2
 class ClusterState(object):
     def __init__(self, uid=-1, workerid=-1):
         self.uid = uid
@@ -58,7 +61,7 @@ class ClusterStateDao(object):
     def setClusterState(self, state):
         cursor = self.conn.cursor()
         try:
-            cursor.execute("insert into clusterstate(uid, state, time, workerid) values(%s, %d, %d) "\
+            cursor.execute("insert into clusterstate(uid, state, time, workerid) values(%s, %d, %d, %d) "\
                            "on duplicate key update "\
                            "state=values(state),time=values(time), workerid=values(workerid);" % 
                            (state.uid, state.state, state.time, state.workerid))

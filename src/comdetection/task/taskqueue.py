@@ -11,7 +11,9 @@ class ClusterTask(object):
         self.uid = uid
         self.cnum= cnum
         self.force= force
-
+    
+    def __str__(self):
+        return ",".join(["%s=%s"%(f,v) for f,v in self.__dict__.items()])
 """
 当前版本的queue实现是基于redis的，总是从redis读取任务
 """
@@ -33,7 +35,7 @@ class ClusterTaskQueue(object):
                     hit = True
                     yield (tasktype, ret)
             if not hit:
-                sleep(0.1)
+                sleep(1)
 
 
 if __name__ == "__main__":
@@ -42,5 +44,12 @@ if __name__ == "__main__":
     config.read(cpath)
     datalayer = DataLayer(config)
     queue = ClusterTaskQueue(datalayer.getJobRedis())
-    task = ClusterTask(1707446764, force=True)
-    queue.addTask(task)
+    #task = ClusterTask(1650507560, force=True)
+    #queue.addTask(task)
+    import sys
+    #sys.exit()
+    fd = open("/home/xiafan/KuaiPan/dataset/user/comidbyidx.txt")
+    for line in fd.readlines():
+        task = ClusterTask(long(line), force=False)
+        queue.addTask(task)
+    fd.close()

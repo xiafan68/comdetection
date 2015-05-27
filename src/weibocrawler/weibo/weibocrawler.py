@@ -3,59 +3,53 @@ from weibo import *
 import logging
 from time import sleep
 from random import randint
+from tokenmanager import *
 
-crawlerLogger = logging.getLogger("weibocrawler")
-def weiboCrawler():
-    pass
+crawlerLogger = logging.getLogger("weibocrawler")     
 
-class Token(object):
-    """
-     String consumer_key;
-    public String consumer_secret;
-    public String token;
-    public String secret;
-    public String redirectUrl;
-    int count;
-    long timestamp;
-    """
-    def __init__(self, **kw):
-        for k, v in kw.iteritems():
-            setattr(self, k, v)
-            
-"""
-manage token refresh
-"""  
-class TokenManager(object):
-    
-    def nextToken(self):
-        pass
-    
 """
 """
 class WeiboCrawler(object):
 
     def __init__(self, tm):
         self.tm = tm
+        self.curToken = None
         
     def __getattr__(self, name):
-        return WeiboCallWrapper(name, self.tm)
-
+        if name != "nextToken":
+            return WeiboCallWrapper(name, self)
+        else:
+            return self.nextToken
+        
+    def nextToken(self, force = False):
+        if force:
+            if self.curToken:
+                self.tm.removeToken(self.curToken)
+                self.curToken = None
+        while True:
+            if self.curToken and self.curToken.isValid():
+                self.curToken.incre()
+                return self.curToken
+            else:
+                if self.curToken:
+                    self.tm.removeToken(self.curToken)
+                self.curToken = self.tm.nextToken()
 
 class WeiboCallWrapper(object):
-    def __init__(self, name, tm): 
+    def __init__(self, name, crawler): 
         self.name = [name]
-        self.tm = tm
+        self.crawler = crawler
     
     def __getattr__(self, name):
         self.name.append(name)
         return self
     
     def __call__(self, **kw):
-        tk = self.tm.nextToken()
+        tk = self.crawler.nextToken()
         for i in range(3) :
             try:
-                client = APIClient(app_key=tk.consumer_key, app_secret=tk.consumer_secret, redirect_uri=tk.redirectUrl)
-                client.set_access_token(tk.token, 2619960)
+                client = APIClient(app_key=tk.uid, app_secret=tk.consumer_secret, redirect_uri=tk.redirectUrl)
+                client.set_access_token(tk.access_token, 2619960)
         
                 cur = client
                 for name in self.name:
@@ -65,16 +59,24 @@ class WeiboCallWrapper(object):
                 if ex.error_code == 10006:
                     #refresh the token
                     pass
-                if ex.error_code== 20101:
+                elif ex.error_code== 20101:
                     pass
+                elif ex.error_code == 10025: #wrong user
+                    break
+                elif ex.error_code == 10023: #rate limitx
+                    self.crawler.nextToken(force=True)
+                elif ex.error_code == 21332:
+                    self.crawler.nextToken(force=True)
+                elif ex.error_code == 21327:
+                    self.crawler.nextToken(force=True)
                 # parse the error type and execute corresponding action
                 crawlerLogger.error("iter %d args:%s;error:%s"%(i, str(kw),str(ex)))
                 pass
             except Exception, ex:
                 crawlerLogger.error(str(ex))
                 pass
-            sTime = randint(1,9)
-            #sleep(sTime)
+            sTime = randint(1,5)
+            sleep(sTime)
 
 if __name__ == "__main__":
     c = WeiboCrawler(TokenManager())

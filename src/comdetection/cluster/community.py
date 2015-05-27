@@ -52,7 +52,7 @@ class Community():
 
     def printCommunity(self):
         for i in self.g.nodes():
-            logging.info( "node %s: cluster %s"%(i, self.n2c[i]))
+           print( "node %s: cluster %s"%(i, self.n2c[i]))
 
     #dnodecomm是什么？
     def remove(self, node, comm, dnodecomm):
@@ -116,15 +116,15 @@ class Community():
         random_order=[] 
         for node in self.g.nodes():
             random_order.append(node)
+        random.shuffle(random_order)
+        """
         for i in range(0, size):
             #随机一个i之后的位置
             rand_pos = random.randint(0, size-i - 1) + i 
             tmp = random_order[i]
             random_order[i] = random_order[rand_pos]
             random_order[rand_pos]=tmp
-        
-        #random_order=self.g.nodes()
-             
+        """
         cont = True
         while (cont):
             cur_mod = new_mod
@@ -269,14 +269,20 @@ class Community():
         curTask = self
         i = 1
         #curTask.printCommunity()
+        threshold = int(0.4 *self.minC)
         while curTask.clusterSize() > self.minC and i < self.maxLevel:    
             logging.info( "start level:%d"%(i))
-            curTask = curTask.genNextCommTask()
-            curTask.oneLevel()
-            curTask.postProcess()
+            newTask = curTask.genNextCommTask()
+            newTask.oneLevel()
+            newTask.postProcess()
             #curTask.printCommunity()
-            cMapChain.append(curTask.n2c)
-            i+=1
+            if self.minC - newTask.clusterSize() < threshold and newTask.clusterSize() != 1:
+                cMapChain.append(newTask.n2c)
+                i+=1
+            else:
+                #print "cluster size is %s"%(newTask.clusterSize())
+                break
+        
         lastMap = cMapChain.pop()
         while len(cMapChain) > 0:
             topMap = lastMap

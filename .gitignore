@@ -2,6 +2,8 @@
 .pydevproject
 .settings/
 *.pyc
+dworker.conf
+crawler.conf
 tweets.data
 umids.txt
 ups.txt
