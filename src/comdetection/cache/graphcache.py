@@ -9,12 +9,14 @@ from lru import LRUCacheDict
 import logging
 from util.strutil import *
 from redisinfo import *
+from dao.datalayer import *
+ 
 logger = logging.getLogger(__name__)
 
 class GraphCache:
-    def __init__(self, dataCluster, profileCluster):
-        self.dataCluster = dataCluster
-        self.profileCluster = profileCluster
+    def __init__(self, dataLayer):
+        self.dataCluster = dataLayer.getSNRedis()
+        self.userDao = dataLayer.getCachedCrawlUserDao()
 
         self.nodeAdj = LRUCacheDict(102400, 10)  # 邻接表 nodeID-> [nodeID]
         self.nodeProfile = LRUCacheDict(102400, 10)  # profiles
@@ -76,63 +78,19 @@ class GraphCache:
         
         return rtnGraph
 
-    def loadNodesName1(self, nodes):
-        pipelines={}
-        for node in nodes:
-            idx = self.profileCluster.getRedisIdx(node)
-            if not idx in pipelines:
-                redis = self.profileCluster.getRedis(node, PROFILE_DB)
-                pipelines[idx]=redis.pipeline(transaction=False)
-                pipelines[idx].hmget(node,'id','name')
-                
-        profiles={}
-        
-        for idx in pipelines:
-            for profile in pipelines[idx].execute():
-                logger.info(profile)
-                profiles[profile[0]]= profile[1]
-        return profiles
-
     def loadNodesName(self, nodes):
         profiles={}
         logger.info("searching for nodes:%s"%str(nodes))
         for node in nodes:
-            idx = self.profileCluster.getRedisIdx(node)
-            redis = self.profileCluster.getRedis(node,PROFILE_DB)
-            name=redis.hget(node,'name')
-            profiles[node]=name
-            if name:
-                logger.info(u'%d:%s'%(node, name.decode('utf-8')))
-
+            rec = self.userDao.getUserProfile(node)
+            profiles[node]=rec['name']
         return profiles
 
     def loadProfiles(self, graph):
         profiles={}
         for node in graph.nodes():
-            idx = self.profileCluster.getRedisIdx(node)
-            redis = self.profileCluster.getRedis(node, PROFILE_DB)
-            rec = redis.hgetall(node)
+            rec = self.userDao.getUserProfile(node)
             profiles[node]=rec
-        return profiles
-
-    def loadProfiles1(self, graph):
-        pipelines={}
-        for node in graph.nodes():
-            idx = self.profileCluster.getRedisIdx(node)
-            if not idx in pipelines:
-                redis = self.profileCluster.getRedis(node, PROFILE_DB)
-                pipelines[idx]=redis.pipeline(transaction=False)
-            pipelines[idx].hgetall(node)
-        profiles={}
-        for idx in pipelines:
-            pipelines[idx]=pipelines[idx].execute()
-       #for idx in pipelines:
-       #   for profile in pipelines[idx].execute():
-       #      profiles[profile['id']]=profile
-     
-        logger.info(str(pipelines))
-        for node in graph.nodes():
-            profiles[node]=pipelines[self.profileCluster.getRedisIdx(node)].pop()
         return profiles
 
     """

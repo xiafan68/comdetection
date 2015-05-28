@@ -9,6 +9,7 @@ from dao.comminfodao import DBCommInfoDao
 from dao.clusterstate import *
 from redisinfo import *
 from cache.graphcache import GraphCache
+from weibocrawler.weibo.tokenmanager import *
 
 class DataLayer(object):
     def __init__(self, config):
@@ -39,7 +40,7 @@ class DataLayer(object):
         return self.jobCluster
     
     def getGraphCache(self):
-        return GraphCache(self.snCluster, self.profileCluster)
+        return GraphCache(self)
     
     def getDBUserDao(self):
         conn = MySQLdb.connect(host=self.config.get('mysql',"host"),
@@ -80,7 +81,7 @@ class DataLayer(object):
         return ret
     
     def getCachedCrawlTweetDao(self):
-        ret= ChainedDao([TweetCrawlerDao(WeiboCrawler(TokenManager()))])
+        ret= ChainedDao([TweetCrawlerDao(WeiboCrawler(TokenManager(self.config)))])
         return ret
     
     def getClusterStateDao(self):
