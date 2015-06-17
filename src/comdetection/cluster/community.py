@@ -269,7 +269,7 @@ class Community():
         curTask = self
         i = 1
         #curTask.printCommunity()
-        threshold = int(0.4 *self.minC)
+        threshold = int(0.6 *self.minC)
         while curTask.clusterSize() > self.minC and i < self.maxLevel:    
             logging.info( "start level:%d"%(i))
             newTask = curTask.genNextCommTask()

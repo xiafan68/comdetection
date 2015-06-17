@@ -1,4 +1,9 @@
-from collections import OrderedDict
+try:
+    # try with the standard library
+    from collections import OrderedDict
+except ImportError:
+    # fallback to Python 2.6-2.4 back-port
+    from ordereddict import OrderedDict
 from time import time
 from itertools import islice
 

@@ -11,6 +11,13 @@ class ClusterState(object):
         self.workerid = workerid
         self.state = 0
         self.time = long(time.time())
+    def shouldRerun(self, clusterTaskTTL, clusterGap):
+        nowt = time.time()
+        if ((self.state == 0 and nowt - self.time >= clusterTaskTTL) or 
+                      (self.state==1 and nowt - self.time > clusterGap) or self.state == 2):
+            return True
+        else:
+            return False
         
 class ClusterStateDao(object):
     def __init__(self, conn):

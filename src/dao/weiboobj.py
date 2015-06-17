@@ -29,10 +29,12 @@ class WeiboObj(object):
     def getSQLValues(self):
         vals = []
         for idx in self.schema.values():
-            if isinstance(self.fields[idx], basestring):
-                vals.append("'%s'" % (self.field[idx]))
+            if isinstance(self.fields[idx],unicode):
+                vals.append("'%s'" %(self.fields[idx].encode('utf8', 'ignores')))
+            elif isinstance(self.fields[idx], basestring):
+                vals.append("'%s'" %(self.fields[idx]))
             else:
-                vals.append(self.field[idx])
+                vals.append(str(self.fields[idx]))
         return ",".join(vals)
     
     def getUpdate(self, keyField):
@@ -43,7 +45,9 @@ class WeiboObj(object):
                 strfmt = "%s=%s"
                 if isinstance(v, basestring):
                     strfmt = "%s='%s'"
-                updates.append(strfmt % (field, v))
+                if isinstance(v,unicode):
+                    v = v.encode('utf8', 'ignores')
+                updates.append(strfmt % (field, str(v)))
         return ",".join(updates)
                 
     def setattr(self, name, value):
@@ -66,12 +70,14 @@ class Tweet(WeiboObj):
             schema[field] = id
             id += 1
         super(Tweet, self).__init__(schema) 
-        
+
+from datetime import datetime
+import time
 class UserProfile(WeiboObj):
     # for compatibility with previous format
-    mapping = {"location":"loc", "description":"descr", "followers_count":"folCount", 
-               "friends_count":"friCount", "statuses_count":"statuscount", 
-               "favourites_count":"favorcount", "verified_type":"vtype", "created_at":"createat","profile_image_url":'pimg_url'}
+    mapping = {"location":"location", "description":"descr", "followers_count":"folCount", 
+               "friends_count":"friCount", "statuses_count":"statusCount", 
+               "favourites_count":"favorCount", "verified_type":"vtype", "created_at":"createat","profile_image_url":'pimg_url'}
     def __init__(self):
         fields = ["uid", "name", "province", "city", "location", "descr", 
                   "url", "pimg_url", "gender", "folCount", "friCount",
@@ -88,6 +94,11 @@ class UserProfile(WeiboObj):
     def setattr(self, name, value):
         if name in UserProfile.mapping:
             name = UserProfile.mapping[name]
+        if name == 'createat':
+            try:
+                value = long(time.mktime(datetime.strptime(value, '%a %b %d %H:%M:%S +0800 %Y').timetuple()))*1000
+            except Exception, ex:
+                pass
         super(UserProfile, self).setattr(name, value)
 
 if __name__ == "__main__":
@@ -96,3 +107,6 @@ if __name__ == "__main__":
         u.setattr(field, field)
     u.setattr("id", 1)
     print u.getUpdate("name")
+    strtime = 'Tue Oct 12 23:07:12 +0800 2010'
+    from datetime import datetime
+    print time.mktime(datetime.strptime(strtime, '%a %b %d %H:%M:%S +0800 %Y').timetuple())

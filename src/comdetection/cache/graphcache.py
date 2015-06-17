@@ -9,7 +9,6 @@ from lru import LRUCacheDict
 import logging
 from util.strutil import *
 from redisinfo import *
-from dao.datalayer import *
  
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class GraphCache:
     def __init__(self, dataLayer):
         self.dataCluster = dataLayer.getSNRedis()
         self.userDao = dataLayer.getCachedCrawlUserDao()
-
+        self.snDao = dataLayer.getCachedCrawlSNDao()
         self.nodeAdj = LRUCacheDict(102400, 10)  # 邻接表 nodeID-> [nodeID]
         self.nodeProfile = LRUCacheDict(102400, 10)  # profiles
         self.edgeNum = 0
@@ -90,7 +89,8 @@ class GraphCache:
         profiles={}
         for node in graph.nodes():
             rec = self.userDao.getUserProfile(node)
-            profiles[node]=rec
+            if rec:
+                profiles[node]=rec
         return profiles
 
     """
@@ -109,9 +109,7 @@ class GraphCache:
     read neighbours of nodeID from redis cluster
     """
     def fetchNode(self, nodeID):
-        redis= self.dataCluster.getRedis(nodeID, SN_DB)
-        neighbours = redis.smembers(nodeID)
-        #self.dataCluster.returnRedis(nodeID, redis)
+        neighbours = self.snDao.getUserFriendsID(nodeID)
         if len(neighbours) > 0:
             self.addEdges(nodeID, neighbours)
         

@@ -4,20 +4,28 @@
 """
 
 from weiboobj import *
-from weibo.weibocrawler import *
+import logging
 import os
 from redisinfo import *
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+hdr = logging.StreamHandler()
+hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s : %(message)s"))
+logger.addHandler(hdr)
 class UserDataCrawlerDao(object):
     def __init__(self, weiboCrawler):
         self.weiboCrawler = weiboCrawler
         
     def getUserProfile(self, uid):
+        logger.info("crawling profile for %s"%(uid))
         user = self.weiboCrawler.users.show.get(uid=uid)
         up = UserProfile()
         if user:
             for k, v in user.items():
                 up.setattr(k, v)
+            logger.info("get user %s"%(up.name))
+            up.setattr('uid',uid)
             return up
         else:
             return None
@@ -39,6 +47,14 @@ class UserDataCrawlerDao(object):
                         ret.append(v)  
         return ret    
 
+    def getUserFriendsID(self, uid):
+        logger.info("crawling friends of %s"%(uid))
+        ret = []
+        jsonRet = self.weiboCrawler.friendships.friends.ids.get(uid=uid)
+        if jsonRet:
+            ret = jsonRet['ids']
+        return ret
+   
 class FileBasedUserDao(object):
     def __init__(self, dataDir):
         self.umap = {}
@@ -134,6 +150,7 @@ class FileBasedUserDao(object):
         self.tagfd.close()
 
 import MySQLdb
+import time
 class DBUserDao(object):
 
     def __init__(self, conn):
@@ -157,13 +174,19 @@ class DBUserDao(object):
         return ret
     
     def updateUserProfile(self, user, uid):
-        user.lastcrawltime=long(time.time())
-        user.crawlstate=2
         cursor = self.conn.cursor()
-        cursor.execute("insert into userprofile(%s) values(%s) on duplicate key update %s;" % (user.getSQLColums(), user.getSQLValues(), user.getUpdate("uid")))
-        cursor.close()
-        self.conn.commit()
-        
+        try:
+            user.lastcrawltime=long(time.time())
+            user.crawlstate=2
+            sql ="insert into userprofile(%s) values(%s) on duplicate key update %s;" % ( user.getSQLColums(), user.getSQLValues(), user.getUpdate("uid"))
+            #print sql
+            cursor.execute(sql)
+        except Exception as ex:
+            print str(ex)
+        finally:
+            cursor.close()
+            self.conn.commit()
+
     def getUserMids(self, uid):
         return self.uMids.get(uid, [])
     
@@ -193,9 +216,10 @@ class DBUserDao(object):
         cursor.execute(sql)
         cursor.close()
         self.conn.commit()
-                
     
-    
+    def updateUserFriendsID(self, uid):
+        pass
+        
     def close(self):
         self.conn.close()
 """
@@ -219,18 +243,18 @@ class RedisUserDao(object):
             return u
         else:
             return None
-    
+        
     def getUsers(self, uids):
         ret = []
         for uid in uids:
             ret.append(self.getUser(uid))
         return ret
     
-    def updateUserProfile(self, user):
-        redis = self.redisCluster.getRedis(user.id,PROFILE_DB)
+    def updateUserProfile(self, user,uid):
+        redis = self.redisCluster.getRedis(uid,PROFILE_DB)
         pipe = redis.pipeline(transaction=False)
         for field in user.schema:
-            pipe.hset(user.id, field, getattr(user, field))
+            pipe.hset(uid, field, getattr(user, field))
         pipe.execute()
         
     def getUserTags(self, uid):
@@ -248,7 +272,21 @@ class RedisUserDao(object):
     def close(self):
         pass
     
-
+class RedisSocialDao(object):
+    def __init__(self, snCluster):
+        self.snCluster = snCluster
+        
+    def getUserFriendsID(self, uid):
+        redis= self.snCluster.getRedis(uid, SN_DB)
+        return redis.smembers(uid) 
+    
+    def updateUserFriendsID(self,friends, uid):
+        redis = self.snCluster.getRedis(uid,SN_DB)
+        pipe = redis.pipeline(transaction=False)
+        for fid in friends:
+            pipe.sadd(uid, fid)
+        pipe.execute()
+        
 if __name__ == "__main__":
     c = WeiboCrawler(TokenManager())
     tdao = FileBasedUserDao("../../ups.data", "../../umids.txt", c)

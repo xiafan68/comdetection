@@ -1,18 +1,15 @@
 __author__ = 'xiafan68'
 import redis
-
+from util.pylangutils import singleton
 """
 simple implementation of a redis cluster, currently we don't need to use
 the cluster functionality provided by redis
->>>config = ConfigParser()
->>>cpath = os.path.join(os.getcwd(), "../../../conf/dworker.conf")
->>>config.read(cpath)
 """
 class RedisCluster:
     def __init__(self, servers):
         self.servers = servers
         self.clientmap={}
-
+        self.poolMap={}
     def start(self):
         pass
     
@@ -24,15 +21,23 @@ class RedisCluster:
         idx = self.getRedisIdx(key)
         if not (idx, db) in self.clientmap:
             server = self.servers[idx]
-            self.clientmap[(idx,db)]=redis.StrictRedis(host=server[0], port=server[1], db=db)
+            self.clientmap[(idx,db)]=redis.StrictRedis(connection_pool=self.getPool((idx,db)),
+                                                       host=server[0], port=server[1], db=db)
         return self.clientmap[(idx, db)]
     
+    def getPool(self, key):
+        if not key in self.poolMap:
+            server = self.servers[key[0]]
+            self.poolMap[key]=redis.ConnectionPool(host=server[0], port=server[1],db=key[1])
+        return self.poolMap[key]
+
     def getRedisIdx(self, key):
         return long(key)%len(self.servers)
 
     def close(self):
         for client in self.clientmap.values():
             client.close()
+            
 if __name__ == "__main__":
     from ConfigParser import ConfigParser
     import os

@@ -4,6 +4,7 @@ import logging
 from time import sleep
 from random import randint
 from tokenmanager import *
+from urllib2 import URLError
 
 crawlerLogger = logging.getLogger("weibocrawler")     
 
@@ -46,10 +47,12 @@ class WeiboCallWrapper(object):
     
     def __call__(self, **kw):
         tk = self.crawler.nextToken()
-        for i in range(3) :
+        i = 0
+        while i < 3 :
+            i += 1
             try:
                 client = APIClient(app_key=tk.uid, app_secret=tk.consumer_secret, redirect_uri=tk.redirectUrl)
-                client.set_access_token(tk.access_token, 2619960)
+                client.set_access_token(tk.access_token, tk.expires_in)
         
                 cur = client
                 for name in self.name:
@@ -63,15 +66,20 @@ class WeiboCallWrapper(object):
                     pass
                 elif ex.error_code == 10025: #wrong user
                     break
+                elif ex.error_code == 20003:#wrong user
+                    break
                 elif ex.error_code == 10023: #rate limitx
-                    self.crawler.nextToken(force=True)
+                    tk = self.crawler.nextToken(force=True)
                 elif ex.error_code == 21332:
-                    self.crawler.nextToken(force=True)
+                    tk = self.crawler.nextToken(force=True)
                 elif ex.error_code == 21327:
-                    self.crawler.nextToken(force=True)
+                    tk = self.crawler.nextToken(force=True)
                 # parse the error type and execute corresponding action
                 crawlerLogger.error("iter %d args:%s;error:%s"%(i, str(kw),str(ex)))
                 pass
+            except URLError, ex :
+                crawlerLogger.error(str(ex))
+                i = 0
             except Exception, ex:
                 crawlerLogger.error(str(ex))
                 pass

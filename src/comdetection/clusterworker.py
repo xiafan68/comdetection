@@ -71,17 +71,14 @@ class ClusterThread(Thread):
                     state = self.stateDao.getClusterState(task[1].uid)
 
                     if not task[1].force:
-                        now = long(time.time())
-                        if state and ((state.state == CLUSTER_RUNNING and now - state.time < self.maxclustertime) or 
-                                      (state.state==CLUSTER_SUCC and now - state.time < self.clustergap)):
-                            continue 
-                     
-                    curState = ClusterState(task[1].uid, self.id)
-                    #a previous job may fail
-                    if not self.stateDao.setupLease(curState, state):
-                        continue
+                        if (state and not state.shouldRerun(self.maxclustertime,self.clustergap)):
+                            continue
                                         
                     try:
+                        curState = ClusterState(task[1].uid, self.id)
+                        #a previous job may fail
+                        if not self.stateDao.setupLease(curState, state):
+                            continue
                         cret = self.execGraphCluster(task[1])
                         if self.stateDao.extendLease(curState):
                             cslogger.info("compute summarization communities")
@@ -114,6 +111,7 @@ class ClusterThread(Thread):
     def execGraphCluster(self,task):
         gcache = self.worker.dataLayer.getGraphCache()
         ego = gcache.egoNetwork(task.uid)
+        gcache.loadProfiles(ego)
         comm = Community(ego, 0.01, task.cnum, 3)
         comm.initCommunity()
         comm.startCluster()
@@ -195,7 +193,7 @@ class ClusterWorker:
 
 if __name__ == "__main__":
     config = ConfigParser()
-    cpath = os.path.join(os.getcwd(), "../../conf/dworker.conf")
+    cpath = os.path.join(os.getcwd(), "../conf/dworker.conf")
     print "load config file:", cpath
     config.read(cpath)
 
