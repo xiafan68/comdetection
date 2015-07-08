@@ -14,8 +14,9 @@ hdr = logging.StreamHandler()
 hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s : %(message)s"))
 logger.addHandler(hdr)
 class UserDataCrawlerDao(object):
-    def __init__(self, weiboCrawler):
+    def __init__(self, weiboCrawler, tagDao):
         self.weiboCrawler = weiboCrawler
+        self.tagDao = tagDao
         
     def getUserProfile(self, uid):
         logger.info("crawling profile for %s"%(uid))
@@ -44,7 +45,9 @@ class UserDataCrawlerDao(object):
             for tagTuple in jsonRet:
                 for (k, v) in tagTuple.items():
                     if k != 'flag' and k != 'weight':
-                        ret.append(v)  
+                        ret.append(v)
+                        if self.tagDao:
+                            self.tagDao.updateTagCount()  
         return ret    
 
     def getUserFriendsID(self, uid):
@@ -152,7 +155,6 @@ class FileBasedUserDao(object):
 import MySQLdb
 import time
 class DBUserDao(object):
-
     def __init__(self, conn):
         self.conn = conn
         

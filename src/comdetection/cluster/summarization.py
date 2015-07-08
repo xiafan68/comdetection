@@ -15,9 +15,12 @@ logging.basicConfig(
 )
 
 class ComSummarize(object):
-    def __init__(self, datalayer):
-        self.udao = datalayer.getCachedCrawlUserDao()
-      
+    def __init__(self):
+        pass
+    
+    def close(self):
+        pass
+        
     #choose tags for each community
     def summarize(self, ego, n2c):
         comms = {}
@@ -47,7 +50,7 @@ class ComSummarize(object):
             #    group = up.name
             hist=[]
             for (k,v) in v.items():
-                    hist.append((k, float(v)/self.globalstats[k]))
+                    hist.append((k, float(v)/(self.globalstats[k]*(self.tagDao.getTagCount(k)+1))))
             hist = sorted(hist, lambda x,y: cmp(x[1], y[1]), reverse=True)
             groupTags[self.groupRepr[group]]=[tag[0] for tag in hist[0:20]]
             
@@ -60,7 +63,7 @@ class ComSummarize(object):
         reprNode=[None,-1]
         
         for uid in v:
-            tags = self.udao.getUserTags(uid)
+            tags = ego.tags[uid]
             weight = ego.neighWeight(uid)
             if weight > reprNode[1]:
                 reprNode[0]=uid

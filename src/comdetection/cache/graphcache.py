@@ -21,6 +21,10 @@ class GraphCache:
         self.nodeProfile = LRUCacheDict(102400, 10)  # profiles
         self.edgeNum = 0
 
+    def close(self):
+        self.userDao.close()
+        self.snDao.close()
+    
     # 插入一条边
     def addEdge(self, start, end):
         if not self.nodeAdj.has_key(start):
@@ -93,6 +97,14 @@ class GraphCache:
                 profiles[node]=rec
         return profiles
 
+    def loadTags(self, graph):
+        tags={}
+        for node in graph.nodes():
+            rec = self.userDao.getUserTags(node)
+            if rec:
+                tags[node]=rec
+        graph.tags = tags
+        
     """
     get the neighbours of nodeID
     """

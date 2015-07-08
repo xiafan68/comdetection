@@ -3,6 +3,7 @@ from chaineddao import ChainedDao
 import MySQLdb 
 from dao.tweetdao import *
 from dao.userdao import *
+from dao.tagdao import *
 import logging
 from cache.graphcache import *
 from dao.comminfodao import DBCommInfoDao
@@ -75,9 +76,19 @@ class DataLayer(object):
         dao = DBCommInfoDao(conn)
         return dao
     
+    def getTagStatsDao(self):
+        conn = MySQLdb.connect(host=self.config.get('mysql',"host"),
+                               port=self.config.getint('mysql', 'port'),
+                               user=self.config.get('mysql',"user"),
+                               passwd=self.config.get('mysql',"passwd"),
+                               db=self.config.get('mysql','db'),
+                               charset="utf8")
+        ret= ChainedDao([RedisTagDao(self.profileCluster), DBTagDao(conn)])#
+        return ret
+        
     def getCachedCrawlUserDao(self):
         ret= ChainedDao([RedisUserDao(self.profileCluster), self.getDBUserDao(),
-                         UserDataCrawlerDao(WeiboCrawler(TokenManager(self.config)))])#
+                         UserDataCrawlerDao(WeiboCrawler(TokenManager(self.config)), self.getTagStatsDao())])#
         return ret
     
     def getCachedCrawlSNDao(self):

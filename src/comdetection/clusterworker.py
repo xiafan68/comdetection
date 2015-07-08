@@ -1,4 +1,4 @@
-#coding:utf8
+# coding:utf8
 import random
 from ConfigParser import ConfigParser
 from network import ClusterClient
@@ -11,11 +11,11 @@ from threading import Thread
 
 from cluster.community import *
 from cache.graphcache import GraphCache
-#from task.taskgen import TaskGen 
+# from task.taskgen import TaskGen 
 import os
 from dao.tweetdao import *
 from dao.datalayer import DataLayer
-#from dao.clusterstate import ClusterState
+# from dao.clusterstate import ClusterState
 from dao.clusterstate import *
 from cluster.summarization import ComSummarize
 from redisinfo import *
@@ -24,8 +24,9 @@ import cPickle
 from task.taskqueue import *
 import traceback
 import sys
+from dao import userdao
 
-cslogger=logging.getLogger("cluster server")
+cslogger = logging.getLogger("cluster server")
 cslogger.setLevel(logging.INFO)
 hdr = logging.StreamHandler()
 hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s : %(message)s"))
@@ -33,7 +34,7 @@ cslogger.addHandler(hdr)
 
 class ReportThread(Thread):
     def __init__(self, slaveWorker):
-        super(ReportThread,self).__init__()
+        super(ReportThread, self).__init__()
         self.slaveWorker = slaveWorker
         
     def run(self):
@@ -56,10 +57,10 @@ class ClusterThread(Thread):
     def __init__(self, worker):
         super(ClusterThread, self).__init__()
         self.worker = worker
-        self.clustergap = worker.config.getint('crawl','clustergap')
-        self.maxclustertime = worker.config.getint('crawl','maxclustertime')
+        self.clustergap = worker.config.getint('crawl', 'clustergap')
+        self.maxclustertime = worker.config.getint('crawl', 'maxclustertime')
         self.sum = ComSummarize(self.worker.dataLayer)
-        self.id = random.randint(0,10000000)
+        self.id = random.randint(0, 10000000)
     def run(self):
         dao = self.worker.dataLayer.getDBCommInfoDao()
         self.stateDao = self.worker.dataLayer.getClusterStateDao()
@@ -67,23 +68,24 @@ class ClusterThread(Thread):
         while worker.working:
             try:
                 for task in worker.taskGen.nextTask():
-                    cslogger.info("processing task %s"%(str(task[1])))
+                    cslogger.info("processing task %s" % (str(task[1])))
                     state = self.stateDao.getClusterState(task[1].uid)
 
                     if not task[1].force:
-                        if (state and not state.shouldRerun(self.maxclustertime,self.clustergap)):
+                        if (state and not state.shouldRerun(self.maxclustertime, self.clustergap)):
                             continue
                                         
                     try:
                         curState = ClusterState(task[1].uid, self.id)
-                        #a previous job may fail
+                        # a previous job may fail
                         if not self.stateDao.setupLease(curState, state):
                             continue
                         cret = self.execGraphCluster(task[1])
                         if self.stateDao.extendLease(curState):
                             cslogger.info("compute summarization communities")
-                            sumIns = ComSummarize(worker.dataLayer)
-                            ret = sumIns.summarize(cret[0],cret[1])
+                            sumIns = ComSummarize()
+                            ret = sumIns.summarize(cret[0], cret[1])
+                            sumIns.close()
                             if self.stateDao.extendLease(curState):
                                 cslogger.info("store neighbours communities")
                                 dao.updateUserNeighComms(task[1].uid, ret[0])
@@ -108,17 +110,29 @@ class ClusterThread(Thread):
                     print "%-23s:%s '%s' in %s()" % (filename, linenum, source, funcname)
         dao.close()
     
-    def execGraphCluster(self,task):
+    def execGraphCluster(self, task):
         gcache = self.worker.dataLayer.getGraphCache()
         ego = gcache.egoNetwork(task.uid)
-        gcache.loadProfiles(ego)
+        # gcache.loadProfiles(ego)
+        gcache.laodTags(ego)
+        gcache.close()
+        
+        #update edge weight
+        for edge in ego.edges():
+            tagsa = set(ego.get(edge[0], []))
+            tagsb = set(edge.get(edge[1], []))
+            if tagsa and tagsb:
+                sim = len(tagsa & tagsb) / float(len(tagsa | tagsb)) + edge[3]
+                ego.udpateEdgeWeight(sim)
+        
         comm = Community(ego, 0.01, task.cnum, 3)
         comm.initCommunity()
         comm.startCluster()
+        comm.close()
         return (ego, comm.n2c)
     
     def summarize(self, comm):
-        return sum.summarize(comm[0],comm[1])
+        return sum.summarize(comm[0], comm[1])
     def setJobState(self, uid, state, time):
         try:
             if not self.stateDao:
@@ -129,7 +143,7 @@ class ClusterThread(Thread):
             try:
                 if self.stateDao:
                     self.stateDao.close()
-                    self.stateDao= None
+                    self.stateDao = None
             except:
                 self.stateDao = None
 
@@ -138,13 +152,13 @@ class ClusterWorker:
         self.config = config
         self.workStatus = WorkStatus()
         try:
-            self.id = config.getint('workder','id')
+            self.id = config.getint('workder', 'id')
         except:
-            self.id = random.randint(0,10000000)
+            self.id = random.randint(0, 10000000)
         
     def start(self):
         self.working = True
-        self.dataLayer= DataLayer(self.config)
+        self.dataLayer = DataLayer(self.config)
 
         # start status report service
         self.reportThread = ReportThread(self)
@@ -152,14 +166,14 @@ class ClusterWorker:
                 
         self.taskGen = ClusterTaskQueue(self.dataLayer.getJobRedis())        
         tnum = self.config.getint('cluster', 'threadnum')
-        cslogger.info("start %d worker threads"%(tnum))
-        self.threads=[]
+        cslogger.info("start %d worker threads" % (tnum))
+        self.threads = []
         for i in range(tnum):
             workThread = ClusterThread(self)
             workThread.start()
             self.threads.append(workThread)
         
-        #waiting for shutdown
+        # waiting for shutdown
         
         while len(self.threads) > 0:
             try:

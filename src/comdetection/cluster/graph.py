@@ -25,7 +25,14 @@ class Graph():
             self.installNodeEdge(start, id, end, weight)
             self.installNodeEdge(end, id, start, weight)
       
-           
+    def udpateEdgeWeight(self, edge, newWeight):
+        self.totalWeight= newWeight - edge[3]
+        if edge[1] == edge[2]:
+            self.nodeSelfWeight[edge[1]] = newWeight
+        else:
+            self.nodeWeight[edge[1]]+=newWeight-edge[3] 
+            self.nodeWeight[edge[2]]+=newWeight-edge[3]
+             
     def existEdge(self, start, end):
         if self.nodeAdj.has_key(start) and self.nodeAdj[start].has_key(end):
             return True
@@ -41,6 +48,7 @@ class Graph():
             self.nodeAdj[node][end] = edgeID
             self.nodeWeight[node] += float(weight)
 
+        
     def getSelfWeight(self, node) :
         if (self.nodeSelfWeight.has_key(node)):
             return self.nodeSelfWeight[node]
@@ -65,6 +73,10 @@ class Graph():
 
     def getEdge(self, nodeID):
         return self.edges[nodeID]
+    
+    def edges(self):
+        return self.edges
+    
     def nodeSize(self):
         return len(self.nodeAdj)
     def edgeSize(self):

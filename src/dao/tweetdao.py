@@ -30,6 +30,8 @@ class TweetCrawlerDao(object):
         else:
             return None
     
+    def close(self):
+        pass
 """
 用于访问tweets数据的类,这个类只能从文件中将数据全部导入内存
 """
