@@ -4,15 +4,12 @@
 """
 
 from weiboobj import *
+from weibo.weibocrawler import *
 import logging
 import os
 from redisinfo import *
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-hdr = logging.StreamHandler()
-hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s : %(message)s"))
-logger.addHandler(hdr)
+logger = logging.getLogger()
 class UserDataCrawlerDao(object):
     def __init__(self, weiboCrawler, tagDao):
         self.weiboCrawler = weiboCrawler
@@ -47,7 +44,7 @@ class UserDataCrawlerDao(object):
                     if k != 'flag' and k != 'weight':
                         ret.append(v)
                         if self.tagDao:
-                            self.tagDao.updateTagCount()  
+                            self.tagDao.updateTagCount(1, v)  
         return ret    
 
     def getUserFriendsID(self, uid):
@@ -58,6 +55,9 @@ class UserDataCrawlerDao(object):
             ret = jsonRet['ids']
         return ret
    
+    def close(self):
+        pass
+    
 class FileBasedUserDao(object):
     def __init__(self, dataDir):
         self.umap = {}
@@ -260,10 +260,16 @@ class RedisUserDao(object):
         pipe.execute()
         
     def getUserTags(self, uid):
-        pass
+        redis = self.redisCluster.getRedis(uid,USER_TAGS_DB)
+        tags = redis.get(uid)
+        ret=[]
+        if tags:
+            ret = tags.split(",")
+        return ret
     
     def updateUserTags(self, utags, uid):
-        pass
+        redis = self.redisCluster.getRedis(uid,USER_TAGS_DB)
+        redis.set(uid, ",".join(utags))
     
     def getUserMids(self):
         pass
@@ -288,7 +294,9 @@ class RedisSocialDao(object):
         for fid in friends:
             pipe.sadd(uid, fid)
         pipe.execute()
-        
+    def close(self):
+        pass
+    
 if __name__ == "__main__":
     c = WeiboCrawler(TokenManager())
     tdao = FileBasedUserDao("../../ups.data", "../../umids.txt", c)

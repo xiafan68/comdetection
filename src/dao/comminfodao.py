@@ -43,8 +43,8 @@ class DBCommInfoDao(object):
             #cursor.executemany(sql, args)
             for friid, group in groups.items():
                cursor.execute(sql%(uid, friid, group))
-        except Exception as ex:
-            logging.error(str(ex))
+        #except Exception as ex:
+            #logging.error(str(ex))
         finally:
             cursor.close()
             self.conn.commit()

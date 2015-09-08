@@ -14,6 +14,8 @@ class Graph():
         
     # 插入一条边
     def addEdge(self, id, start, end, weight):
+        start = int(start)
+        end = int(end)
         if self.existEdge(start, end):
             return
         self.totalWeight += float(weight)
@@ -34,6 +36,8 @@ class Graph():
             self.nodeWeight[edge[2]]+=newWeight-edge[3]
              
     def existEdge(self, start, end):
+        start = int(start)
+        end = int(end)
         if self.nodeAdj.has_key(start) and self.nodeAdj[start].has_key(end):
             return True
         return False
@@ -50,6 +54,7 @@ class Graph():
 
         
     def getSelfWeight(self, node) :
+        node = int(node)
         if (self.nodeSelfWeight.has_key(node)):
             return self.nodeSelfWeight[node]
         else:
@@ -65,22 +70,32 @@ class Graph():
 
     # 获取一个节点相邻的节点，返回(node, edgeID)
     def neighbours(self, node):
+        node = int(node)
         return self.nodeAdj[node].items()
 
+    def neighbourNodes(self, node):
+        node = int(node)
+        ret=set()
+        for other in  self.nodeAdj[node].keys():
+            ret.add(other)
+        return ret
+    
     # 所有邻接边(除去selfloop边)的权重之和
     def neighWeight(self, node):
+        node = int(node)
         return self.nodeWeight[node]
 
-    def getEdge(self, nodeID):
-        return self.edges[nodeID]
+    def getEdge(self, edgeID):
+        return self.edges[edgeID]
     
-    def edges(self):
+    def getEdges(self):
         return self.edges
+    
+    def getEdgeNum(self):
+        return len(self.edges)
     
     def nodeSize(self):
         return len(self.nodeAdj)
-    def edgeSize(self):
-        return len(self.edges)
 
     def __str__(self):
         ret = "graph:*****************\n"

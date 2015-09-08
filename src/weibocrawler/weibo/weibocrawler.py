@@ -6,7 +6,7 @@ from random import randint
 from tokenmanager import *
 from urllib2 import URLError
 
-crawlerLogger = logging.getLogger("weibocrawler")     
+crawlerLogger = logging.getLogger()     
 
 """
 """

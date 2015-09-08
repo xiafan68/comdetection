@@ -10,6 +10,7 @@ from thrift.server import TServer
 from threading import Thread
 
 from cluster.community import *
+from cluster.scan import *
 from cache.graphcache import GraphCache
 # from task.taskgen import TaskGen 
 import os
@@ -26,11 +27,11 @@ import traceback
 import sys
 from dao import userdao
 
-cslogger = logging.getLogger("cluster server")
-cslogger.setLevel(logging.INFO)
-hdr = logging.StreamHandler()
-hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s : %(message)s"))
-cslogger.addHandler(hdr)
+import logging
+import logging.config
+logPath = os.path.join(os.getenv("COMMUNITY_HOME", os.getcwd()), "./conf/logger.conf")
+logging.config.fileConfig(logPath)
+cslogger = logging.getLogger()
 
 class ReportThread(Thread):
     def __init__(self, slaveWorker):
@@ -59,50 +60,49 @@ class ClusterThread(Thread):
         self.worker = worker
         self.clustergap = worker.config.getint('crawl', 'clustergap')
         self.maxclustertime = worker.config.getint('crawl', 'maxclustertime')
-        self.sum = ComSummarize(self.worker.dataLayer)
         self.id = random.randint(0, 10000000)
     def run(self):
         dao = self.worker.dataLayer.getDBCommInfoDao()
         self.stateDao = self.worker.dataLayer.getClusterStateDao()
         worker = self.worker
+        sumIns = ComSummarize(self.worker.dataLayer.getTagStatsDao())
         while worker.working:
             try:
-                for task in worker.taskGen.nextTask():
-                    cslogger.info("processing task %s" % (str(task[1])))
-                    state = self.stateDao.getClusterState(task[1].uid)
+                task = worker.taskGen.nextTask()
+                cslogger.info("processing task %s" % (str(task[1])))
+                state = self.stateDao.getClusterState(task[1].uid)
 
-                    if not task[1].force:
-                        if (state and not state.shouldRerun(self.maxclustertime, self.clustergap)):
-                            continue
-                                        
-                    try:
-                        curState = ClusterState(task[1].uid, self.id)
-                        # a previous job may fail
-                        if not self.stateDao.setupLease(curState, state):
-                            continue
-                        cret = self.execGraphCluster(task[1])
+                if not task[1].force:
+                    if (state and not state.shouldRerun(self.maxclustertime, self.clustergap)):
+                        continue
+                                    
+                try:
+                    curState = ClusterState(task[1].uid, self.id)
+                    # a previous job may fail
+                    if not self.stateDao.setupLease(curState, state):
+                        continue
+                    cret = self.execGraphCluster(task[1])
+                    if self.stateDao.extendLease(curState):
+                        cslogger.info("compute summarization communities")
+                        ret = sumIns.summarize(cret[0], cret[1])
+                        sumIns.close()
                         if self.stateDao.extendLease(curState):
-                            cslogger.info("compute summarization communities")
-                            sumIns = ComSummarize()
-                            ret = sumIns.summarize(cret[0], cret[1])
-                            sumIns.close()
-                            if self.stateDao.extendLease(curState):
-                                cslogger.info("store neighbours communities")
-                                dao.updateUserNeighComms(task[1].uid, ret[0])
-                                cslogger.info("store  communities tags")
-                                dao.updateCommTags(task[1].uid, ret[1])
-                                curState.state = CLUSTER_SUCC
-                                self.stateDao.setClusterState(curState)
-                                cslogger.info("task completes")
-                    except Exception as ex:
-                        curState.state = CLUSTER_FAIL
-                        self.stateDao.setClusterState(curState)
-                        print str(ex)
-                        try:
-                            dao.close()
-                            dao = self.worker.dataLayer.getDBCommInfoDao()
-                        except:
-                            pass
+                            cslogger.info("store neighbours communities")
+                            dao.updateUserNeighComms(task[1].uid, ret[0])
+                            cslogger.info("store  communities tags")
+                            dao.updateCommTags(task[1].uid, ret[1])
+                            curState.state = CLUSTER_SUCC
+                            self.stateDao.setClusterState(curState)
+                            cslogger.info("task completes")
+                except Exception as ex:
+                    curState.state = CLUSTER_FAIL
+                    self.stateDao.setClusterState(curState)
+                    print str(ex)
+                    try:
+                        dao.close()
+                        dao = self.worker.dataLayer.getDBCommInfoDao()
+                    except:
+                        pass
             except Exception as ex:
                 cslogger.error(ex)
                 exc_type, exc_value, exc_tb = sys.exc_info()
@@ -114,21 +114,33 @@ class ClusterThread(Thread):
         gcache = self.worker.dataLayer.getGraphCache()
         ego = gcache.egoNetwork(task.uid)
         # gcache.loadProfiles(ego)
-        gcache.laodTags(ego)
+        gcache.loadTags(ego)
         gcache.close()
         
         #update edge weight
-        for edge in ego.edges():
-            tagsa = set(ego.get(edge[0], []))
-            tagsb = set(edge.get(edge[1], []))
+        for a in ego.nodes():
+            for b in ego.nodes():
+                tagsa = set(ego.tags.get(a, []))
+                tagsb = set(ego.tags.get(b, []))
+                if tagsa and tagsb:
+                    sim = len(tagsa & tagsb) / float(len(tagsa | tagsb))
+                    if sim > 0.3:
+                        ego.addEdge(ego.getEdgeNum(), a, b, 1.0)
+        """
+        for edge in ego.getEdges():
+            tagsa = set(ego.tags.get(edge[0], []))
+            tagsb = set(ego.tags.get(edge[1], []))
             if tagsa and tagsb:
                 sim = len(tagsa & tagsb) / float(len(tagsa | tagsb)) + edge[3]
                 ego.udpateEdgeWeight(sim)
+        """
         
-        comm = Community(ego, 0.01, task.cnum, 3)
-        comm.initCommunity()
-        comm.startCluster()
-        comm.close()
+        #comm = Community(ego, 0.01, task.cnum, 3)
+        #comm.initCommunity()
+        #comm.startCluster()
+        #comm.close()
+        comm = scan(ego)
+        comm.computeCommunity()
         return (ego, comm.n2c)
     
     def summarize(self, comm):
@@ -206,10 +218,12 @@ class ClusterWorker:
         self.reportThread.join()
 
 if __name__ == "__main__":
+    
     config = ConfigParser()
-    cpath = os.path.join(os.getcwd(), "../conf/dworker.conf")
+    cpath = os.path.join(os.getenv("COMMUNITY_HOME", os.getcwd()), "./conf/dworker.conf")
     print "load config file:", cpath
     config.read(cpath)
 
+    
     slaveWorker = ClusterWorker(config)
     slaveWorker.start() 

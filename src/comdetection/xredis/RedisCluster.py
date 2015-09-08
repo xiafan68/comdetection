@@ -1,6 +1,6 @@
 __author__ = 'xiafan68'
 import redis
-from util.pylangutils import singleton
+import math
 """
 simple implementation of a redis cluster, currently we don't need to use
 the cluster functionality provided by redis
@@ -32,7 +32,11 @@ class RedisCluster:
         return self.poolMap[key]
 
     def getRedisIdx(self, key):
-        return long(key)%len(self.servers)
+        try:
+            key = long(key)
+        except:
+            key = abs(hash(key))
+        return key%len(self.servers)
 
     def close(self):
         for client in self.clientmap.values():
@@ -44,7 +48,7 @@ if __name__ == "__main__":
     import threading
     import logging
     
-    cslogger=logging.getLogger("cluster server")    
+    cslogger=logging.getLogger()    
     cslogger.setLevel(logging.INFO)
     hdr = logging.StreamHandler()
     hdr.setFormatter(logging.Formatter("[%(asctime)s] %(name)s:%(levelname)s : %(message)s"))

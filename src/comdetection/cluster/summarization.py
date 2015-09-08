@@ -15,11 +15,12 @@ logging.basicConfig(
 )
 
 class ComSummarize(object):
-    def __init__(self):
-        pass
+    def __init__(self, tagDao):
+        self.tagDao = tagDao
+        
     
     def close(self):
-        pass
+        self.tagDao.close()
         
     #choose tags for each community
     def summarize(self, ego, n2c):
@@ -53,7 +54,7 @@ class ComSummarize(object):
                     hist.append((k, float(v)/(self.globalstats[k]*(self.tagDao.getTagCount(k)+1))))
             hist = sorted(hist, lambda x,y: cmp(x[1], y[1]), reverse=True)
             groupTags[self.groupRepr[group]]=[tag[0] for tag in hist[0:20]]
-            
+        logging.info("end summarize")
         return (groups, groupTags)
     
     def buildUserTagWordCloud(self, ego, k, v):
@@ -63,7 +64,7 @@ class ComSummarize(object):
         reprNode=[None,-1]
         
         for uid in v:
-            tags = ego.tags[uid]
+            tags = ego.tags.get(uid,[])
             weight = ego.neighWeight(uid)
             if weight > reprNode[1]:
                 reprNode[0]=uid

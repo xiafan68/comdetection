@@ -10,7 +10,7 @@ import logging
 from util.strutil import *
 from redisinfo import *
  
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 class GraphCache:
     def __init__(self, dataLayer):
@@ -70,7 +70,7 @@ class GraphCache:
         if self.existNode(nodeID):
             neighbours = self.loadNeighbours(nodeID)
             for neighbour in neighbours:
-                neighbour=strToUnicode(neighbour)
+                neighbour = strToUnicode(neighbour)
                 rtnGraph.addEdge(edgeID, nodeID, neighbour, 1.0)
                 edgeID += 1
                 cNeighbours = self.loadNeighbours(neighbour)
@@ -82,27 +82,27 @@ class GraphCache:
         return rtnGraph
 
     def loadNodesName(self, nodes):
-        profiles={}
-        logger.info("searching for nodes:%s"%str(nodes))
+        profiles = {}
+        logger.info("searching for nodes:%s" % str(nodes))
         for node in nodes:
             rec = self.userDao.getUserProfile(node)
-            profiles[node]=rec['name']
+            profiles[node] = rec['name']
         return profiles
 
     def loadProfiles(self, graph):
-        profiles={}
+        profiles = {}
         for node in graph.nodes():
             rec = self.userDao.getUserProfile(node)
             if rec:
-                profiles[node]=rec
+                profiles[node] = rec
         return profiles
 
     def loadTags(self, graph):
-        tags={}
+        tags = {}
         for node in graph.nodes():
             rec = self.userDao.getUserTags(node)
             if rec:
-                tags[node]=rec
+                tags[node] = rec
         graph.tags = tags
         
     """
@@ -137,7 +137,8 @@ if __name__ == "__main__":
     dataCluster = RedisCluster([ ("10.11.1.51", 6379),
             ("10.11.1.52", 6379), ("10.11.1.53", 6379), ("10.11.1.54", 6379), ("10.11.1.55", 6379),
            ("10.11.1.56", 6379), ("10.11.1.57", 6379), ("10.11.1.58", 6379), ("10.11.1.61", 6379),
-            ("10.11.1.62", 6379), ("10.11.1.63", 6379)], 0)
+            ("10.11.1.62", 6379), ("10.11.1.63", 6379)])
     dataCluster.start()
-    graphCache = GraphCache(dataCluster)
-    print str(graphCache.egoNetwork("1000048833"))
+    #graphCache = GraphCache(dataCluster)
+    #print str(graphCache.egoNetwork("1000048833"))
+    dataCluster.getRedis("1646586724", SN_DB).delete("1646586724")

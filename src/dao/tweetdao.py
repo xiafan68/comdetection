@@ -3,7 +3,7 @@ from weiboobj import Tweet
 import logging
 from redisinfo import TWEET_DB
 
-logger = logging.getLogger("tweetdao")
+logger = logging.getLogger()
 class TweetCrawlerDao(object):
     def __init__(self, weiboCrawler):
         self.weiboCrawler = weiboCrawler

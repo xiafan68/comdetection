@@ -27,15 +27,12 @@ class ClusterTaskQueue(object):
     def nextTask(self):
         tasktypes=['cluster']
         while True:
-            hit = False
             for tasktype in tasktypes:
                 ret = self.redis.lpop(tasktype)
                 if ret:
                     ret =cPickle.loads(ret)
-                    hit = True
-                    yield (tasktype, ret)
-            if not hit:
-                sleep(1)
+                    return (tasktype, ret)
+            sleep(1)
 
 
 def loadCompTopUsers():
@@ -82,9 +79,9 @@ def loadAllCompUsers():
     task = ClusterTask(1646586724, force=True)
     #1646586724 pingan
     #1897953162 ali
-    #queue.addTask(task)
+    queue.addTask(task)
     import sys
-    #sys.exit()
+    sys.exit()
     fd = open("/home/xiafan/KuaiPan/dataset/user/comidbyidx.txt")
     for line in fd.readlines():
         task = ClusterTask(long(line), force=False)
@@ -92,4 +89,5 @@ def loadAllCompUsers():
     fd.close()
     
 if __name__ == "__main__":
-    loadCompTopUsers()
+    #loadCompTopUsers()
+    loadAllCompUsers()

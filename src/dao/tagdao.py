@@ -11,7 +11,7 @@ class RedisTagDao(object):
         
     def getTagCount(self, tag):
         redis = self.redisCluster.getRedis(tag, TAGS_STATS_DB)
-        return redis.get(tag)
+        return int(redis.get(tag))
 
     def updateTagCount(self, freq, tag):
         redis = self.redisCluster.getRedis(tag, TAGS_STATS_DB)
@@ -34,7 +34,7 @@ class DBTagDao(object):
         
         ret = None
         if res:
-            ret = res['num']
+            ret = int(res['num'])
         cursor.close()
         return ret
     
@@ -42,7 +42,7 @@ class DBTagDao(object):
         cursor = self.conn.cursor()
         try:
            
-            sql ="insert into tagstats(tag, num) values(%s, %s) on duplicate key update num=%s;" % (tag,freq,freq)
+            sql ="insert into tagstats(tag, num) values('%s', %s) on duplicate key update num=%s;" % (tag,freq,freq)
             #print sql
             cursor.execute(sql)
         except Exception as ex:

@@ -93,7 +93,7 @@ class DataLayer(object):
     
     def getCachedCrawlSNDao(self):
         ret= ChainedDao([RedisSocialDao(self.snCluster),
-                         UserDataCrawlerDao(WeiboCrawler(TokenManager(self.config)))])#
+                         UserDataCrawlerDao(WeiboCrawler(TokenManager(self.config)), self.getTagStatsDao())])#
         return ret
     
     def getCachedCrawlTweetDao(self):

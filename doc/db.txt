@@ -45,6 +45,7 @@ CREATE  TABLE `community`.`tweet` (
   
   CREATE  TABLE `community`.`clusterstate` (
   `uid` VARCHAR(20) NOT NULL ,
+  `workerid` BIGINT NOT NULL,
   `state` TINYINT NULL ,
   `time` BIGINT NULL ,
   PRIMARY KEY (`uid`) );
@@ -53,6 +54,11 @@ CREATE  TABLE `community`.`tweet` (
   CREATE  TABLE `community`.`neighgroups` (
   `uid` VARCHAR(20) NOT NULL ,
   `friid` VARCHAR(20) NOT NULL ,
-  `group` VARCHAR(20) NOT NULL ,
+  `groupid` VARCHAR(20) NOT NULL ,
   INDEX `uid` (`uid` ASC) );
   
+  CREATE  TABLE `community`.`neighgroups` (
+  `uid` VARCHAR(20) NOT NULL ,
+  `friid` VARCHAR(20) NOT NULL ,
+  `groupid` VARCHAR(20) NOT NULL ,
+  INDEX `uid` (`uid` ASC) );

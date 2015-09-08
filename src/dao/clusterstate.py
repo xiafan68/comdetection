@@ -72,8 +72,8 @@ class ClusterStateDao(object):
                            "on duplicate key update "\
                            "state=values(state),time=values(time), workerid=values(workerid);" % 
                            (state.uid, state.state, state.time, state.workerid))
-        except Exception as ex:
-            print str(ex)
+        #except Exception as ex:
+            #print str(ex)
         finally:
             cursor.close()
             self.conn.commit()
