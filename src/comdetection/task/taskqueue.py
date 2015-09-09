@@ -76,7 +76,7 @@ def loadAllCompUsers():
     config.read(cpath)
     datalayer = DataLayer(config)
     queue = ClusterTaskQueue(datalayer.getJobRedis())
-    task = ClusterTask(1646586724, force=True)
+    task = ClusterTask(1897953162, force=True)
     #1646586724 pingan
     #1897953162 ali
     queue.addTask(task)

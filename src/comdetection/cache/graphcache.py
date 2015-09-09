@@ -137,8 +137,9 @@ if __name__ == "__main__":
     dataCluster = RedisCluster([ ("10.11.1.51", 6379),
             ("10.11.1.52", 6379), ("10.11.1.53", 6379), ("10.11.1.54", 6379), ("10.11.1.55", 6379),
            ("10.11.1.56", 6379), ("10.11.1.57", 6379), ("10.11.1.58", 6379), ("10.11.1.61", 6379),
-            ("10.11.1.62", 6379), ("10.11.1.63", 6379)])
+            ("10.11.1.46", 6379), ("10.11.1.63", 6379)])
     dataCluster.start()
     #graphCache = GraphCache(dataCluster)
     #print str(graphCache.egoNetwork("1000048833"))
-    dataCluster.getRedis("1646586724", SN_DB).delete("1646586724")
+    #dataCluster.getRedis("1897953162", SN_DB).delete("1897953162")
+    dataCluster.getRedis("1650507560", SN_DB).delete("1650507560")

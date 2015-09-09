@@ -83,21 +83,26 @@ class ClusterThread(Thread):
                         continue
                     cret = self.execGraphCluster(task[1])
                     if self.stateDao.extendLease(curState):
-                        cslogger.info("compute summarization communities")
+                        cslogger.info("compute summarization communities %s"%(str(task[1])))
                         ret = sumIns.summarize(cret[0], cret[1])
-                        sumIns.close()
+                        #sumIns.close()
                         if self.stateDao.extendLease(curState):
-                            cslogger.info("store neighbours communities")
+                            cslogger.info("store neighbours communities %s"%(str(task[1])))
                             dao.updateUserNeighComms(task[1].uid, ret[0])
-                            cslogger.info("store  communities tags")
+                            cslogger.info("store  communities tags %s"%(str(task[1])))
                             dao.updateCommTags(task[1].uid, ret[1])
                             curState.state = CLUSTER_SUCC
                             self.stateDao.setClusterState(curState)
-                            cslogger.info("task completes")
+                            cslogger.info("task completes %s"%(str(task[1])))
+                        else:
+                            curState.state = CLUSTER_FAIL
+                            curState.errmsg = "extend lease fail"
+                            self.stateDao.setClusterState(curState)
                 except Exception as ex:
                     curState.state = CLUSTER_FAIL
+                    curState.errmsg = str(ex)
                     self.stateDao.setClusterState(curState)
-                    print str(ex)
+                    logging.error(str(ex))
                     try:
                         dao.close()
                         dao = self.worker.dataLayer.getDBCommInfoDao()
